@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jordan Ellis — Data Engineer</title>
+<meta name="description" content="Portfolio of Jordan Ellis, data engineer specializing in pipelines, warehousing, and real-time systems.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="grid-overlay" aria-hidden="true"></div>
+
+<header class="nav" id="top">
+  <a class="nav__brand" href="#top">JE<span class="nav__brand-dot">.</span></a>
+  <nav class="nav__links">
+    <a href="#about">About</a>
+    <a href="#projects">Projects</a>
+    <a href="#skills">Stack</a>
+    <a href="#contact">Contact</a>
+  </nav>
+  <a class="nav__cta" href="resume.pdf" download>Résumé ↓</a>
+  <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<main>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="hero">
+    <div class="hero__text">
+      <p class="eyebrow">// role: data_engineer</p>
+      <h1 class="hero__title">Jordan Ellis</h1>
+      <p class="hero__subtitle">
+        I design pipelines that move data reliably from where it's created
+        to where it's needed — then get out of the way.
+      </p>
+      <p class="hero__desc">
+        Based in London. Currently building streaming and batch infrastructure
+        for analytics teams. Comfortable anywhere between a raw event log and
+        a stakeholder's dashboard.
+      </p>
+      <div class="hero__actions">
+        <a href="#projects" class="btn btn--primary">View projects</a>
+        <a href="#contact" class="btn btn--ghost">Get in touch</a>
+      </div>
+    </div>
+
+    <div class="hero__diagram" aria-hidden="true">
+      <svg viewBox="0 0 640 420" xmlns="http://www.w3.org/2000/svg" class="pipeline-svg">
+        <!-- connecting lines -->
+        <g class="pipe-lines" fill="none" stroke-width="2">
+          <path class="pipe-line" d="M110,80 C200,80 200,190 280,190" />
+          <path class="pipe-line" d="M110,190 C200,190 200,190 280,190" />
+          <path class="pipe-line" d="M110,300 C200,300 200,190 280,190" />
+          <path class="pipe-line pipe-line--out" d="M360,190 C440,190 440,110 520,110" />
+          <path class="pipe-line pipe-line--out" d="M360,190 C440,190 440,300 520,300" />
+        </g>
+
+        <!-- source nodes -->
+        <g class="node" transform="translate(30,55)">
+          <rect width="80" height="50" rx="8"/>
+          <text x="40" y="30" text-anchor="middle">API</text>
+        </g>
+        <g class="node" transform="translate(30,165)">
+          <rect width="80" height="50" rx="8"/>
+          <text x="40" y="30" text-anchor="middle">Postgres</text>
+        </g>
+        <g class="node" transform="translate(30,275)">
+          <rect width="80" height="50" rx="8"/>
+          <text x="40" y="30" text-anchor="middle">S3 logs</text>
+        </g>
+
+        <!-- transform node -->
+        <g class="node node--core" transform="translate(280,150)">
+          <rect width="80" height="80" rx="10"/>
+          <text x="40" y="37" text-anchor="middle">ETL</text>
+          <text x="40" y="55" text-anchor="middle" class="node__sub">transform</text>
+        </g>
+
+        <!-- destination nodes -->
+        <g class="node node--dest" transform="translate(520,85)">
+          <rect width="90" height="50" rx="8"/>
+          <text x="45" y="30" text-anchor="middle">Warehouse</text>
+        </g>
+        <g class="node node--dest" transform="translate(520,275)">
+          <rect width="90" height="50" rx="8"/>
+          <text x="45" y="30" text-anchor="middle">Dashboard</text>
+        </g>
+
+        <text x="320" y="400" text-anchor="middle" class="diagram-caption">status: healthy · latency: 4m12s</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ============ ABOUT ============ -->
+  <section class="section" id="about">
+    <p class="eyebrow">// 01_about</p>
+    <div class="about">
+      <div class="about__copy">
+        <h2 class="section__title">A bit about how I work</h2>
+        <p>
+          I'm a data engineer with a background in backend systems, which
+          means I care about pipelines the same way I'd care about any
+          production service: they should be observable, they should fail
+          loudly and recover quietly, and they should never silently drop
+          a row.
+        </p>
+        <p>
+          Over the last few years I've moved from writing one-off scripts
+          to designing systems — orchestrated batch jobs, streaming
+          ingestion, warehouse modeling, and the monitoring that tells you
+          when any of it breaks at 3am. I like the unglamorous parts of
+          the job: schema design, backfills, idempotency, cost.
+        </p>
+        <p>
+          Outside of pipelines, I write about data infrastructure and
+          contribute small fixes to the open-source tools I rely on.
+        </p>
+      </div>
+      <dl class="about__stats">
+        <div class="stat">
+          <dt>Years in data</dt><dd>5</dd>
+        </div>
+        <div class="stat">
+          <dt>Pipelines shipped</dt><dd>30+</dd>
+        </div>
+        <div class="stat">
+          <dt>Favorite orchestrator</dt><dd>Airflow</dd>
+        </div>
+        <div class="stat">
+          <dt>Currently learning</dt><dd>Iceberg</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ============ PROJECTS ============ -->
+  <section class="section" id="projects">
+    <p class="eyebrow">// 02_projects</p>
+    <h2 class="section__title">Selected pipelines</h2>
+    <p class="section__intro">
+      A few systems I've designed and shipped, ranging from real-time
+      ingestion to batch warehouse modeling.
+    </p>
+
+    <div class="jobs">
+
+      <article class="job">
+        <div class="job__head">
+          <span class="job__id">JOB-01</span>
+          <span class="job__status job__status--live">production</span>
+        </div>
+        <h3 class="job__title">Real-time clickstream pipeline</h3>
+        <p class="job__desc">
+          Ingests ~2M events/day from a web SDK through Kafka into
+          ClickHouse, powering a live product-analytics dashboard with
+          sub-minute latency. Replaced a nightly batch job that used to
+          leave the product team a full day behind.
+        </p>
+        <ul class="job__stack">
+          <li>Kafka</li><li>Flink</li><li>ClickHouse</li><li>Python</li>
+        </ul>
+        <div class="job__links">
+          <a href="#">Repo ↗</a>
+          <a href="#">Write-up ↗</a>
+        </div>
+      </article>
+
+      <article class="job">
+        <div class="job__head">
+          <span class="job__id">JOB-02</span>
+          <span class="job__status job__status--live">production</span>
+        </div>
+        <h3 class="job__title">Batch ELT framework</h3>
+        <p class="job__desc">
+          A config-driven Airflow + dbt framework that standardized how
+          the analytics team ships new data sources — cut the time to
+          add a new source from roughly two weeks to two days.
+        </p>
+        <ul class="job__stack">
+          <li>Airflow</li><li>dbt</li><li>Snowflake</li><li>Terraform</li>
+        </ul>
+        <div class="job__links">
+          <a href="#">Repo ↗</a>
+          <a href="#">Write-up ↗</a>
+        </div>
+      </article>
+
+      <article class="job">
+        <div class="job__head">
+          <span class="job__id">JOB-03</span>
+          <span class="job__status job__status--wip">in progress</span>
+        </div>
+        <h3 class="job__title">Data quality monitor</h3>
+        <p class="job__desc">
+          Lightweight expectation checks that run after every dbt model
+          and post failures straight to Slack with the offending rows
+          attached, so breakages get caught before an analyst does.
+        </p>
+        <ul class="job__stack">
+          <li>Great Expectations</li><li>Python</li><li>Slack API</li>
+        </ul>
+        <div class="job__links">
+          <a href="#">Repo ↗</a>
+        </div>
+      </article>
+
+      <article class="job">
+        <div class="job__head">
+          <span class="job__id">JOB-04</span>
+          <span class="job__status job__status--archived">archived</span>
+        </div>
+        <h3 class="job__title">Migration: legacy cron → orchestrated DAGs</h3>
+        <p class="job__desc">
+          Migrated 40+ undocumented cron jobs into version-controlled
+          Airflow DAGs with retries, alerting, and lineage — without a
+          single missed run during cutover.
+        </p>
+        <ul class="job__stack">
+          <li>Airflow</li><li>Docker</li><li>PostgreSQL</li>
+        </ul>
+        <div class="job__links">
+          <a href="#">Write-up ↗</a>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============ SKILLS ============ -->
+  <section class="section" id="skills">
+    <p class="eyebrow">// 03_stack</p>
+    <h2 class="section__title">Tools I reach for</h2>
+
+    <div class="stack-grid">
+      <div class="stack-group">
+        <h3>Languages</h3>
+        <ul class="tags">
+          <li>Python</li><li>SQL</li><li>Scala</li><li>Bash</li>
+        </ul>
+      </div>
+      <div class="stack-group">
+        <h3>Orchestration</h3>
+        <ul class="tags">
+          <li>Airflow</li><li>Dagster</li><li>dbt</li>
+        </ul>
+      </div>
+      <div class="stack-group">
+        <h3>Streaming</h3>
+        <ul class="tags">
+          <li>Kafka</li><li>Flink</li><li>Kinesis</li>
+        </ul>
+      </div>
+      <div class="stack-group">
+        <h3>Storage &amp; warehousing</h3>
+        <ul class="tags">
+          <li>Snowflake</li><li>BigQuery</li><li>PostgreSQL</li><li>S3</li>
+        </ul>
+      </div>
+      <div class="stack-group">
+        <h3>Infra &amp; cloud</h3>
+        <ul class="tags">
+          <li>AWS</li><li>Terraform</li><li>Docker</li><li>Kubernetes</li>
+        </ul>
+      </div>
+      <div class="stack-group">
+        <h3>Monitoring</h3>
+        <ul class="tags">
+          <li>Grafana</li><li>Great Expectations</li><li>Datadog</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONTACT ============ -->
+  <section class="section section--contact" id="contact">
+    <p class="eyebrow">// 04_contact</p>
+    <h2 class="section__title">Let's talk data</h2>
+    <p class="section__intro">
+      Open to new roles and interesting infrastructure problems.
+      The fastest way to reach me is email.
+    </p>
+    <div class="contact__links">
+      <a href="mailto:hello@jordanellis.dev" class="btn btn--primary">hello@jordanellis.dev</a>
+      <a href="https://github.com/" class="btn btn--ghost">GitHub ↗</a>
+      <a href="https://linkedin.com/" class="btn btn--ghost">LinkedIn ↗</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>Built by Jordan Ellis · deployed on GitHub Pages</p>
+  <p class="footer__log">// last_run: success · 0 rows_dropped</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
