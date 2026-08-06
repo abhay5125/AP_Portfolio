@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Portfolio site
 
 A single-page portfolio template built with plain HTML/CSS/JS — no build
@@ -56,3 +57,6 @@ values will cascade through the whole site.
 - Add a blog section if you start writing about your work.
 - Swap the SVG pipeline diagram in the hero for something animated with
   real (anonymized) metrics from a project you're proud of.
+=======
+# abhaypatel.github.io
+>>>>>>> 450a067927eb3f46c8781f85dc384cbc7eb89942
