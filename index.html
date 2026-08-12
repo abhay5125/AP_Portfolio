@@ -146,8 +146,7 @@
     <p class="eyebrow">// 02_projects</p>
     <h2 class="section__title">Selected pipelines</h2>
     <p class="section__intro">
-      A few systems I've designed and shipped, ranging from real-time
-      ingestion to batch warehouse modeling.
+      A few systems I've designed and shipped.
     </p>
 
     <div class="jobs">
@@ -155,17 +154,16 @@
       <article class="job">
         <div class="job__head">
           <span class="job__id">JOB-01</span>
-          <span class="job__status job__status--live">production</span>
+          <span class="job__status job__status--live">Data Analysis</span>
         </div>
-        <h3 class="job__title">Real-time clickstream pipeline</h3>
+        <h3 class="job__title">DC micro-motor selection for the design of a Biologically-Inspired Flapping-Wing MAV</h3>
         <p class="job__desc">
-          Ingests ~2M events/day from a web SDK through Kafka into
-          ClickHouse, powering a live product-analytics dashboard with
-          sub-minute latency. Replaced a nightly batch job that used to
-          leave the product team a full day behind.
+          Developed a computational model in MATLAB to generate and analyse performance data for flapping-wing Micro Aerial Vehicles.
+          Conducted quantitative analysis across multiple actuator parameters, identifying trends and relationships
+          between mass, power, frequency and efficiency to evaluate system performance and design trade-offs.
         </p>
         <ul class="job__stack">
-          <li>Kafka</li><li>Flink</li><li>ClickHouse</li><li>Python</li>
+          <li>MATLAB</li><li></li><li>Computational Modelling</li><li>Quantitative Engineering Analysis</li>
         </ul>
         <div class="job__links">
           <a href="#">Repo ↗</a>
@@ -176,16 +174,16 @@
       <article class="job">
         <div class="job__head">
           <span class="job__id">JOB-02</span>
-          <span class="job__status job__status--live">production</span>
+          <span class="job__status job__status--live">Data Analysis</span>
         </div>
-        <h3 class="job__title">Batch ELT framework</h3>
+        <h3 class="job__title">Quantitative Trading Strategy Backtesting</h3>
         <p class="job__desc">
-          A config-driven Airflow + dbt framework that standardized how
-          the analytics team ships new data sources — cut the time to
-          add a new source from roughly two weeks to two days.
+          Analysed historical financial data using Python and Pandas to develop and backtest quantitative trading strategies. 
+          Engineered technical indicators including moving averages and Bollinger Bands, evaluating historical performance and 
+          identifying patterns and trading signals through data analysis and visualisation.
         </p>
         <ul class="job__stack">
-          <li>Airflow</li><li>dbt</li><li>Snowflake</li><li>Terraform</li>
+          <li>Python</li><li>Pandas</li><li>NumPy</li><li>yfinance</li><li>Matplotlib</li><li>Quantitative Analysis</li>
         </ul>
         <div class="job__links">
           <a href="#">Repo ↗</a>
@@ -196,16 +194,18 @@
       <article class="job">
         <div class="job__head">
           <span class="job__id">JOB-03</span>
-          <span class="job__status job__status--wip">in progress</span>
+          <span class="job__status job__status--wip">Data Engineering</span>
         </div>
-        <h3 class="job__title">Data quality monitor</h3>
+        <h3 class="job__title">NYC Delivery Service - End-to-End Data Engineering</h3>
         <p class="job__desc">
-          Lightweight expectation checks that run after every dbt model
-          and post failures straight to Slack with the offending rows
-          attached, so breakages get caught before an analyst does.
+          Built an end-to-end data analytics solution using Databricks and Power BI,
+          transforming restaurant delivery data through a Medallion Architecture. 
+          Analysed sales trends and external factors including weather, public holidays and
+          major sporting events to identify patterns in customer demand and support data-driven
+          business decisions
         </p>
         <ul class="job__stack">
-          <li>Great Expectations</li><li>Python</li><li>Slack API</li>
+          <li>Databricks</li><li>Apache Spark</li><li>Microsoft Azure</li><li>ETL</li>
         </ul>
         <div class="job__links">
           <a href="#">Repo ↗</a>
@@ -215,16 +215,16 @@
       <article class="job">
         <div class="job__head">
           <span class="job__id">JOB-04</span>
-          <span class="job__status job__status--archived">archived</span>
+          <span class="job__status job__status--archived">Data Analysis</span>
         </div>
-        <h3 class="job__title">Migration: legacy cron → orchestrated DAGs</h3>
+        <h3 class="job__title">Formula 1 Performance Analysis</h3>
         <p class="job__desc">
-          Migrated 40+ undocumented cron jobs into version-controlled
-          Airflow DAGs with retries, alerting, and lineage — without a
-          single missed run during cutover.
+          Collected and analysed Formula 1 race data using the FastF1 API, developing
+          analysis to calculate tyre degradation across compounds and race stints. Analysed lap-time trends
+          and driver performance, presenting findings through an interactive Streamlit dashboard
         </p>
         <ul class="job__stack">
-          <li>Airflow</li><li>Docker</li><li>PostgreSQL</li>
+          <li>Python</li><li>Pandas</li><li>NumPy</li><li>API</li><li>Streamlit</li>
         </ul>
         <div class="job__links">
           <a href="#">Write-up ↗</a>
