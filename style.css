@@ -224,7 +224,25 @@ img, svg { display: block; max-width: 100%; }
 .btn--ghost:hover { border-color: var(--teal); color: var(--teal); }
 
 /* ---- pipeline diagram ---- */
-.hero__diagram { width: 100%; }
+.hero__diagram {
+  width: 100%;
+  position: relative;
+  aspect-ratio: 640 / 420; /* matches the fallback SVG's viewBox proportions */
+}
+
+.hero__canvas {
+  display: none; /* shown only once script confirms it's safe to animate */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* JS adds this class to <body> only after checking prefers-reduced-motion
+   and confirming canvas is supported. No JS, or reduced motion: the
+   fallback SVG below stays visible exactly as it is today. */
+body.has-particle-hero .hero__diagram-fallback { display: none; }
+body.has-particle-hero .hero__canvas { display: block; }
 
 .pipeline-svg .node rect {
   fill: var(--panel);

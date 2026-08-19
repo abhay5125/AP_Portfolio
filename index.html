@@ -51,7 +51,8 @@
     </div>
 
     <div class="hero__diagram" aria-hidden="true">
-      <svg viewBox="0 0 640 420" xmlns="http://www.w3.org/2000/svg" class="pipeline-svg">
+      <canvas class="hero__canvas" id="heroCanvas"></canvas>
+      <svg viewBox="0 0 640 420" xmlns="http://www.w3.org/2000/svg" class="pipeline-svg hero__diagram-fallback">
         <!-- connecting lines -->
         <g class="pipe-lines" fill="none" stroke-width="2">
           <path class="pipe-line" d="M110,80 C200,80 200,190 280,190" />
@@ -302,6 +303,7 @@
 </footer>
 
 <script src="script.js"></script>
+<script src="hero-animation.js"></script>
 </body>
 </html>
 
