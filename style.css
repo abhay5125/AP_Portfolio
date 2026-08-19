@@ -71,6 +71,21 @@ img, svg { display: block; max-width: 100%; }
   mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 90%);
 }
 
+/* Sitewide particle canvas. Fixed to the viewport (not the page) so it
+   never needs to be page-height tall — the particle system just draws in
+   viewport coordinates the whole time. Sits above the background grid but
+   below all real content (.hero/.section have z-index:1), so particles
+   never visually cover text — they only show through wherever the content
+   layer has empty space (e.g. the hero__diagram column, page margins). */
+.site-particles {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  width: 100vw;
+  height: 100vh;
+}
+
 .eyebrow {
   font-family: var(--font-mono);
   font-size: 0.8rem;
@@ -207,17 +222,17 @@ img, svg { display: block; max-width: 100%; }
    and get revealed progressively as the user scrolls through the pinned
    hero (see hero-animation.js). Without JS, or with reduced motion, none
    of this applies and the text is visible immediately as it is today. */
-body.has-particle-hero .hero__subtitle,
-body.has-particle-hero .hero__desc,
-body.has-particle-hero .hero__actions {
+body.has-particle-system .hero__subtitle,
+body.has-particle-system .hero__desc,
+body.has-particle-system .hero__actions {
   opacity: 0;
   transform: translateY(12px);
   transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
-body.has-particle-hero .hero__subtitle.is-revealed,
-body.has-particle-hero .hero__desc.is-revealed,
-body.has-particle-hero .hero__actions.is-revealed {
+body.has-particle-system .hero__subtitle.is-revealed,
+body.has-particle-system .hero__desc.is-revealed,
+body.has-particle-system .hero__actions.is-revealed {
   opacity: 1;
   transform: translateY(0);
 }
@@ -255,19 +270,17 @@ body.has-particle-hero .hero__actions.is-revealed {
   aspect-ratio: 640 / 420; /* matches the fallback SVG's viewBox proportions */
 }
 
-.hero__canvas {
-  display: none; /* shown only once script confirms it's safe to animate */
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
 /* JS adds this class to <body> only after checking prefers-reduced-motion
    and confirming canvas is supported. No JS, or reduced motion: the
    fallback SVG below stays visible exactly as it is today. */
-body.has-particle-hero .hero__diagram-fallback { display: none; }
-body.has-particle-hero .hero__canvas { display: block; }
+body.has-particle-system .hero__diagram-fallback { display: none; }
+
+/* Projects: same pattern — .jobs is the static fallback grid, .project-stage
+   is the single card that gets repopulated as particles cycle through each
+   project. Only one of the two is ever visible. */
+body.has-particle-system .jobs { display: none; }
+body.has-particle-system .project-stage { display: block; }
+body.has-particle-system .projects-progress { display: flex; }
 
 .pipeline-svg .node rect {
   fill: var(--panel);
@@ -507,6 +520,119 @@ body.has-particle-hero .hero__canvas { display: block; }
 
 @media (max-width: 780px) {
   .jobs { grid-template-columns: 1fr; }
+}
+
+/* ---- projects progress dots ---- */
+.projects-progress {
+  display: none; /* shown only once body.has-particle-system is set */
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+.progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.progress-dot.is-active {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
+/* ---- project particle-stage card ----
+   One fixed card frame; its content gets swapped by site-particles.js as
+   the user scrolls through each project. Text styling intentionally
+   mirrors .job so the fallback and animated versions feel identical. */
+.project-stage {
+  display: none; /* shown only once body.has-particle-system is set */
+  max-width: 640px;
+  min-height: 320px;
+  background: var(--panel-alt, var(--panel));
+  border-radius: 12px 12px 12px 2px;
+  padding: 2rem;
+  border-left: 3px solid var(--panel-border);
+  transition: border-left-color 0.4s ease;
+}
+.project-stage[data-category="aerospace"] { border-left-color: var(--amber); }
+.project-stage[data-category="engineering"] { border-left-color: var(--teal); }
+.project-stage[data-category="analysis"] { border-left-color: var(--purple); }
+
+.project-stage__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.9rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.project-stage__id {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.project-stage__category {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px 20px 20px 2px;
+  border: 1px solid currentColor;
+}
+.project-stage[data-category="aerospace"] .project-stage__category { color: var(--amber); }
+.project-stage[data-category="engineering"] .project-stage__category { color: var(--teal); }
+.project-stage[data-category="analysis"] .project-stage__category { color: var(--purple); }
+
+.project-stage__title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 0.7rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.project-stage__desc {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-bottom: 1.1rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s;
+}
+.project-stage__stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+  list-style: none;
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
+}
+.project-stage__stack li {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  border: 1px solid var(--panel-border);
+  padding: 0.25rem 0.55rem;
+  border-radius: 5px;
+}
+.project-stage__links {
+  display: flex;
+  gap: 1.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
+}
+.project-stage__links a { color: var(--teal); }
+.project-stage__links a:hover { text-decoration: underline; }
+
+.project-stage.is-content-visible .project-stage__title,
+.project-stage.is-content-visible .project-stage__desc,
+.project-stage.is-content-visible .project-stage__stack,
+.project-stage.is-content-visible .project-stage__links {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ============================================
