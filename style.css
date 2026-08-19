@@ -547,12 +547,29 @@ body.has-particle-system .projects-progress { display: flex; }
 .project-stage {
   display: none; /* shown only once body.has-particle-system is set */
   max-width: 640px;
+  max-height: min(58vh, 480px); /* always fit within the pinned viewport */
+  overflow-y: auto;
   min-height: 320px;
   background: var(--panel-alt, var(--panel));
   border-radius: 12px 12px 12px 2px;
   padding: 2rem;
   border-left: 3px solid var(--panel-border);
   transition: border-left-color 0.4s ease;
+}
+
+/* Less vertical space spent on section furniture while the pinned card
+   sequence is running — the eyebrow/heading/intro don't need as much
+   breathing room here as a normal static section does, and reclaiming
+   that space is what keeps the card from being pushed below the fold. */
+body.has-particle-system #projects {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+body.has-particle-system #projects .section__intro {
+  margin-bottom: 1rem;
+}
+body.has-particle-system #projects .projects-progress {
+  margin-bottom: 1rem;
 }
 .project-stage[data-category="aerospace"] { border-left-color: var(--amber); }
 .project-stage[data-category="engineering"] { border-left-color: var(--teal); }

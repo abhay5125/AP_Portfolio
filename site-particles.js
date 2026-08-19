@@ -220,7 +220,7 @@
   ScrollTrigger.create({
     trigger: heroSection,
     start: 'top ' + navHeight,
-    end: '+=2500', // tune after seeing it live — same as stage 2
+    end: '+=1600', // shortened from 2500 — long pins meant a long scroll back up too
     pin: true,
     pinSpacing: true,
     scrub: 1,
@@ -280,7 +280,7 @@
   ScrollTrigger.create({
     trigger: projectsSection,
     start: 'top ' + projectsNavHeight,
-    end: '+=6000', // rough guess for 4 projects — tune after seeing it live
+    end: '+=3200', // shortened from 6000 — ~800px/project, still tune-able
     pin: true,
     pinSpacing: true,
     scrub: 1,
@@ -462,7 +462,7 @@
         // the moment you're not in the settling zone (see the else
         // branch), so scrolling back up and revisiting later doesn't
         // compound into dimmer and dimmer particles each time.
-        p.settleFade = Math.max(0, (p.settleFade === undefined ? 1 : p.settleFade) - 0.01);
+        p.settleFade = Math.max(0.25, (p.settleFade === undefined ? 1 : p.settleFade) - 0.01);
       } else {
         p.settleFade = 1;
         p.x += p.vx;
