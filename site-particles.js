@@ -1,5 +1,7 @@
-// STAGE4-CHECK (site-particles.js): if you can see this comment when you
-// open this file in Notepad, this is the correct updated file.
+// STAGE4-CHECK (site-particles.js), bugfix pass: if you can see this
+// comment when you open this file in Notepad, this is the correct
+// updated file. Fixed: hero/ambient particle pool conflict, permanent
+// footer-settle dimming, projects segment-boundary flicker.
 //
 // Sitewide particle system — stage 4.
 //
@@ -285,10 +287,16 @@
     onUpdate: function (self) {
       projectsRawProgress = self.progress;
 
-      // find which project's segment we're in, and local progress within it
-      var idx = 0;
+      // find which project's segment we're in, and local progress within it.
+      // Half-open intervals ([start, end) rather than [start, end]) so a
+      // progress value sitting exactly on a boundary can't match two
+      // segments at once — that ambiguity could otherwise make the index
+      // flicker between two projects for a frame, which kept resetting
+      // is-content-visible before the reveal ever finished (looking like
+      // the card "stopped early" / stayed cut off).
+      var idx = PROJECTS.length - 1;
       for (var i = 0; i < PROJECTS.length; i++) {
-        if (projectsRawProgress >= segmentBounds[i] && projectsRawProgress <= segmentBounds[i + 1]) {
+        if (projectsRawProgress < segmentBounds[i + 1]) {
           idx = i;
           break;
         }
@@ -370,8 +378,8 @@
     p.y += p.vy * driftFactor * 0.3;
     var desiredX = p.x + (p.targetX - p.x) * eased;
     var desiredY = p.y + (p.targetY - p.y) * eased;
-    p._drawX = (p._drawX === undefined ? desiredX : p._drawX) + (desiredX - (p._drawX === undefined ? desiredX : p._drawX)) * 0.08;
-    p._drawY = (p._drawY === undefined ? desiredY : p._drawY) + (desiredY - (p._drawY === undefined ? desiredY : p._drawY)) * 0.08;
+    p._drawX = (p._drawX === undefined ? desiredX : p._drawX) + (desiredX - (p._drawX === undefined ? desiredX : p._drawX)) * 0.12;
+    p._drawY = (p._drawY === undefined ? desiredY : p._drawY) + (desiredY - (p._drawY === undefined ? desiredY : p._drawY)) * 0.12;
     ctx.beginPath();
     ctx.arc(p._drawX, p._drawY, p.r, 0, Math.PI * 2);
     ctx.fillStyle = rgba(color, p.alpha);
@@ -427,23 +435,36 @@
     return COLORS.teal;
   }
 
+  // Whether hero/projects currently have exclusive claim on the first
+  // FRAME_COUNT particles. Computed once here and reused everywhere else
+  // (previously this was recomputed slightly differently inside
+  // drawAmbient, and that second copy incorrectly required
+  // heroProgress < 1 — which becomes false at the exact moment the hero
+  // finishes converging, right when it should still hold the claim. That
+  // let ambient drift fight over the same particles the hero was using,
+  // which is why convergence looked incomplete.)
+  var heroClaimsFrame = false;
+  var projectsClaimFrame = false;
+
   function drawAmbient() {
     var color = currentAmbientColor();
     var footerRect = footerLogEl ? footerLogEl.getBoundingClientRect() : null;
     var scrollFrac = window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
     var settling = scrollFrac > 0.97 && footerRect;
 
-    var frameActiveNow = (heroEased > 0.01 && heroEased < 1 && heroProgress < 1) ||
-      (currentProjectIndex >= 0 && projectsRawProgress < 1 && frameEased > 0.05);
-
-    var startIdx = frameActiveNow ? FRAME_COUNT : 0; // ambient-only pool, or everyone if nothing's claimed
+    var startIdx = (heroClaimsFrame || projectsClaimFrame) ? FRAME_COUNT : 0;
     for (var i = startIdx; i < TOTAL_COUNT; i++) {
       var p = particles[i];
       if (settling) {
         p.x += (footerRect.left + footerRect.width / 2 - p.x) * 0.01;
         p.y += (footerRect.top - p.y) * 0.01;
-        p.alpha = Math.max(0, p.alpha - 0.002);
+        // Transient fade, not a permanent one — settleFade resets to 1
+        // the moment you're not in the settling zone (see the else
+        // branch), so scrolling back up and revisiting later doesn't
+        // compound into dimmer and dimmer particles each time.
+        p.settleFade = Math.max(0, (p.settleFade === undefined ? 1 : p.settleFade) - 0.01);
       } else {
+        p.settleFade = 1;
         p.x += p.vx;
         p.y += p.vy;
         if (p.x < 0) p.x = window.innerWidth;
@@ -451,9 +472,10 @@
         if (p.y < 0) p.y = window.innerHeight;
         if (p.y > window.innerHeight) { p.y = 0; p.x = Math.random() < 0.5 ? Math.random() * 0.28 * window.innerWidth : (0.72 + Math.random() * 0.28) * window.innerWidth; }
       }
+      var displayAlpha = Math.min(p.alpha, 0.4) * (p.settleFade === undefined ? 1 : p.settleFade);
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = rgba(color, Math.min(p.alpha, 0.4)); // capped opacity — content comes first
+      ctx.fillStyle = rgba(color, displayAlpha); // capped opacity — content comes first
       ctx.fill();
     }
   }
@@ -462,8 +484,10 @@
   function draw() {
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
-    var heroActive = heroProgress < 1 || heroEased > 0.001;
-    if (heroActive && heroSection.getBoundingClientRect().bottom > 0) {
+    heroClaimsFrame = heroEased > 0.001 && heroSection.getBoundingClientRect().bottom > 0;
+    projectsClaimFrame = currentProjectIndex >= 0 && projectsRawProgress < 1 && frameEased > 0.001;
+
+    if (heroClaimsFrame) {
       drawHeroFrame();
     }
     if (currentProjectIndex >= 0) {
