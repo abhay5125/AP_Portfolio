@@ -1,4 +1,6 @@
-/* STAGE2-CHECK: if you can see this comment when you open this file in Notepad, this is the correct updated file. */
+/* STAGE3-CHECK (style.css): if you can see this comment when you open this
+   file in Notepad, this is the correct updated file. Stage 3 = content
+   cleanup + About stats strip + three-color project cards. */
 
 /* ============================================
    TOKENS
@@ -13,6 +15,8 @@
   --teal: #4FD1C5;
   --teal-dim: rgba(79, 209, 197, 0.14);
   --amber: #F5A623;
+  --purple: #A78BFA;
+  --purple-dim: rgba(167, 139, 250, 0.14);
 
   --font-display: "Space Grotesk", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
@@ -366,17 +370,22 @@ body.has-particle-hero .hero__canvas { display: block; }
 }
 
 .about__stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  overflow: hidden;
   align-content: start;
+  height: fit-content;
 }
 
 .stat {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius);
+  flex: 1 1 120px;
   padding: 1.1rem 1.2rem;
+  border-right: 1px solid var(--panel-border);
+}
+.stat:last-child {
+  border-right: none;
 }
 .stat dt {
   font-family: var(--font-mono);
@@ -393,6 +402,9 @@ body.has-particle-hero .hero__canvas { display: block; }
 
 @media (max-width: 780px) {
   .about { grid-template-columns: 1fr; }
+  .about__stats { flex-direction: column; }
+  .stat { border-right: none; border-bottom: 1px solid var(--panel-border); }
+  .stat:last-child { border-bottom: none; }
 }
 
 /* ============================================
@@ -406,21 +418,30 @@ body.has-particle-hero .hero__canvas { display: block; }
 
 .job {
   background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius);
+  border-radius: 12px 12px 12px 2px;
   padding: 1.6rem;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  border-left: 3px solid var(--panel-border);
+  transition: transform 0.2s ease, border-left-color 0.2s ease;
 }
 .job:hover {
-  border-color: var(--teal);
   transform: translateY(-3px);
 }
+
+/* Category color — same three-color system used across the site:
+   amber = aerospace-origin, teal = data engineering, purple = data
+   analysis/quant. This is the primary visual signal for what kind of
+   work a project is. */
+.job--aerospace { border-left-color: var(--amber); }
+.job--engineering { border-left-color: var(--teal); }
+.job--analysis { border-left-color: var(--purple); }
 
 .job__head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   margin-bottom: 0.9rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .job__id {
@@ -429,16 +450,23 @@ body.has-particle-hero .hero__canvas { display: block; }
   color: var(--text-muted);
 }
 
-.job__status {
+/* Lifecycle status (live / in progress / archived) is deliberately kept
+   as quiet, uncolored text — separate from the category color above, so
+   the two pieces of information never compete for the same color. */
+.job__lifecycle {
+  color: var(--text-muted);
+}
+
+.job__category {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   padding: 0.25rem 0.6rem;
-  border-radius: 20px;
+  border-radius: 20px 20px 20px 2px;
   border: 1px solid currentColor;
 }
-.job__status--live { color: var(--teal); }
-.job__status--wip { color: var(--amber); }
-.job__status--archived { color: var(--text-muted); }
+.job--aerospace .job__category { color: var(--amber); }
+.job--engineering .job__category { color: var(--teal); }
+.job--analysis .job__category { color: var(--purple); }
 
 .job__title {
   font-family: var(--font-display);

@@ -1,4 +1,8 @@
-// STAGE2-CHECK: if you can see this comment when you open this file in Notepad, this is the correct updated file.
+// STAGE2-CHECK (hero-animation.js): if you can see this comment when you open
+// this file in Notepad, this is the correct updated file. This file hasn't
+// changed since stage 2 (scroll-triggered assembly) — that's expected, not
+// a mistake. It'll get a STAGE4-CHECK marker when the particle-card project
+// section reuses this logic.
 //
 // Hero animation — stage 2: scroll-triggered assembly.
 //

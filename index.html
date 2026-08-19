@@ -1,4 +1,6 @@
-<!-- STAGE2-CHECK: if you can see this comment when you open this file in Notepad, this is the correct updated file. -->
+<!-- STAGE3-CHECK (index.html): if you can see this comment when you open this
+     file in Notepad, this is the correct updated file. Stage 3 = content
+     cleanup + About stats strip + three-color project cards. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 
@@ -153,10 +155,10 @@
 
     <div class="jobs">
 
-      <article class="job">
+      <article class="job job--aerospace">
         <div class="job__head">
-          <span class="job__id">JOB-01</span>
-          <span class="job__status job__status--live">Data Analysis</span>
+          <span class="job__id">JOB-01 <span class="job__lifecycle">· live</span></span>
+          <span class="job__category">Aerospace Analysis</span>
         </div>
         <h3 class="job__title">DC micro-motor selection for the design of a Biologically-Inspired Flapping-Wing MAV</h3>
         <p class="job__desc">
@@ -177,12 +179,16 @@
           <a href="#">Write-up ↗</a>
         </div>
       </article>
-          <span class="job__status job__status--live">Data Analysis</span>
+
+      <article class="job job--analysis">
+        <div class="job__head">
+          <span class="job__id">JOB-02 <span class="job__lifecycle">· live</span></span>
+          <span class="job__category">Data Analysis</span>
         </div>
         <h3 class="job__title">Quantitative Trading Strategy Backtesting</h3>
         <p class="job__desc">
-          Analysed historical financial data using Python and Pandas to develop and backtest quantitative trading strategies. 
-          Engineered technical indicators including moving averages and Bollinger Bands, evaluating historical performance and 
+          Analysed historical financial data using Python and Pandas to develop and backtest quantitative trading strategies.
+          Engineered technical indicators including moving averages and Bollinger Bands, evaluating historical performance and
           identifying patterns and trading signals through data analysis and visualisation.
         </p>
         <ul class="job__stack">
@@ -196,15 +202,15 @@
         </div>
       </article>
 
-      <article class="job">
+      <article class="job job--engineering">
         <div class="job__head">
-          <span class="job__id">JOB-03</span>
-          <span class="job__status job__status--wip">Data Engineering</span>
+          <span class="job__id">JOB-03 <span class="job__lifecycle">· in progress</span></span>
+          <span class="job__category">Data Engineering</span>
         </div>
         <h3 class="job__title">NYC Delivery Service - End-to-End Data Engineering</h3>
         <p class="job__desc">
           Built an end-to-end data analytics solution using Databricks and Power BI,
-          transforming restaurant delivery data through a Medallion Architecture. 
+          transforming restaurant delivery data through a Medallion Architecture.
           Analysed sales trends and external factors including weather, public holidays and
           major sporting events to identify patterns in customer demand and support data-driven
           business decisions
@@ -219,10 +225,10 @@
         </div>
       </article>
 
-      <article class="job">
+      <article class="job job--analysis">
         <div class="job__head">
-          <span class="job__id">JOB-04</span>
-          <span class="job__status job__status--archived">Data Analysis</span>
+          <span class="job__id">JOB-04 <span class="job__lifecycle">· archived</span></span>
+          <span class="job__category">Data Analysis</span>
         </div>
         <h3 class="job__title">Formula 1 Performance Analysis</h3>
         <p class="job__desc">
