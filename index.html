@@ -1,6 +1,6 @@
-<!-- STAGE4-CHECK (index.html): if you can see this comment when you open this
-     file in Notepad, this is the correct updated file. Stage 4 = sitewide
-     continuous particle system + projects particle-card sequence. -->
+<!-- STAGE5-CHECK (index.html): if you can see this comment when you open this
+     file in Notepad, this is the correct updated file. Stage 5 = medallion
+     hero (replaces the old particle system). -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,12 +11,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 
 <div class="grid-overlay" aria-hidden="true"></div>
-<canvas id="siteParticles" class="site-particles" aria-hidden="true"></canvas>
 
 <header class="nav" id="top">
   <a class="nav__brand" href="#top">AP<span class="nav__brand-dot">.</span></a>
@@ -54,49 +53,61 @@
       </div>
     </div>
 
+    <!-- ============================================================
+         HERO DIAGRAM — medallion architecture
+         ============================================================
+         Three stages (Bronze / Silver / Gold) with a single "entity"
+         that travels along the path as you scroll. Each stage lights
+         up and reveals its blurb as the entity arrives.
+
+         Everything here is plain SVG. hero-medallion.js moves the
+         entity along #flowPath and toggles .is-active on each .stage.
+         With no JS (or reduced motion) the CSS shows all stages in
+         their lit state and parks the entity at the end — the diagram
+         still reads correctly, it just doesn't animate.
+         ============================================================ -->
     <div class="hero__diagram" aria-hidden="true">
-      <svg viewBox="0 0 640 420" xmlns="http://www.w3.org/2000/svg" class="pipeline-svg hero__diagram-fallback">
-        <!-- connecting lines -->
-        <g class="pipe-lines" fill="none" stroke-width="2">
-          <path class="pipe-line" d="M110,80 C200,80 200,190 280,190" />
-          <path class="pipe-line" d="M110,190 C200,190 200,190 280,190" />
-          <path class="pipe-line" d="M110,300 C200,300 200,190 280,190" />
-          <path class="pipe-line pipe-line--out" d="M360,190 C440,190 440,110 520,110" />
-          <path class="pipe-line pipe-line--out" d="M360,190 C440,190 440,300 520,300" />
+      <svg viewBox="0 0 640 340" xmlns="http://www.w3.org/2000/svg" class="medallion">
+
+        <!-- The track the entity travels along. Drawn first so it sits
+             behind the stage boxes. -->
+        <path id="flowPath" class="medallion__track" d="M20,200 L620,200" fill="none"/>
+
+        <!-- ---------- STAGE 1: BRONZE ---------- -->
+        <g class="stage stage--bronze" data-stage="0">
+          <rect class="stage__box" x="20" y="100" width="170" height="140" rx="10"/>
+          <text class="stage__name" x="105" y="132" text-anchor="middle">Bronze</text>
+          <text class="stage__sub"  x="105" y="152" text-anchor="middle">raw ingestion</text>
+          <text class="stage__blurb" x="105" y="272" text-anchor="middle">lands exactly as sent</text>
+          <text class="stage__blurb" x="105" y="290" text-anchor="middle">nothing dropped</text>
         </g>
 
-        <!-- source nodes -->
-        <g class="node" transform="translate(30,55)">
-          <rect width="80" height="50" rx="8"/>
-          <text x="40" y="30" text-anchor="middle">API</text>
-        </g>
-        <g class="node" transform="translate(30,165)">
-          <rect width="80" height="50" rx="8"/>
-          <text x="40" y="30" text-anchor="middle">Postgres</text>
-        </g>
-        <g class="node" transform="translate(30,275)">
-          <rect width="80" height="50" rx="8"/>
-          <text x="40" y="30" text-anchor="middle">S3 logs</text>
+        <!-- ---------- STAGE 2: SILVER ---------- -->
+        <g class="stage stage--silver" data-stage="1">
+          <rect class="stage__box" x="235" y="100" width="170" height="140" rx="10"/>
+          <text class="stage__name" x="320" y="132" text-anchor="middle">Silver</text>
+          <text class="stage__sub"  x="320" y="152" text-anchor="middle">cleaned, conformed</text>
+          <text class="stage__blurb" x="320" y="272" text-anchor="middle">schema enforced</text>
+          <text class="stage__blurb" x="320" y="290" text-anchor="middle">deduplicated</text>
         </g>
 
-        <!-- transform node -->
-        <g class="node node--core" transform="translate(280,150)">
-          <rect width="80" height="80" rx="10"/>
-          <text x="40" y="37" text-anchor="middle">ETL</text>
-          <text x="40" y="55" text-anchor="middle" class="node__sub">transform</text>
+        <!-- ---------- STAGE 3: GOLD ---------- -->
+        <g class="stage stage--gold" data-stage="2">
+          <rect class="stage__box" x="450" y="100" width="170" height="140" rx="10"/>
+          <text class="stage__name" x="535" y="132" text-anchor="middle">Gold</text>
+          <text class="stage__sub"  x="535" y="152" text-anchor="middle">business-ready</text>
+          <text class="stage__blurb" x="535" y="272" text-anchor="middle">aggregated for BI</text>
+          <text class="stage__blurb" x="535" y="290" text-anchor="middle">served to dashboards</text>
         </g>
 
-        <!-- destination nodes -->
-        <g class="node node--dest" transform="translate(520,85)">
-          <rect width="90" height="50" rx="8"/>
-          <text x="45" y="30" text-anchor="middle">Warehouse</text>
-        </g>
-        <g class="node node--dest" transform="translate(520,275)">
-          <rect width="90" height="50" rx="8"/>
-          <text x="45" y="30" text-anchor="middle">Dashboard</text>
+        <!-- The travelling entity. cx/cy get set by JS every frame.
+             The outer circle is a soft halo, the inner one is the core. -->
+        <g id="flowEntity" class="medallion__entity">
+          <circle class="entity__halo" r="14"/>
+          <circle class="entity__core" r="5"/>
         </g>
 
-        <text x="320" y="400" text-anchor="middle" class="diagram-caption">status: healthy · latency: 4m12s</text>
+        <text x="320" y="325" text-anchor="middle" class="medallion__caption">medallion architecture · bronze → silver → gold</text>
       </svg>
     </div>
   </section>
@@ -152,28 +163,6 @@
     <p class="section__intro">
       A few systems I've designed and shipped.
     </p>
-
-    <div class="projects-progress" id="projectsProgress" aria-hidden="true">
-      <span class="progress-dot is-active"></span>
-      <span class="progress-dot"></span>
-      <span class="progress-dot"></span>
-      <span class="progress-dot"></span>
-    </div>
-
-    <!-- Shown only once JS confirms the particle system is running (see
-         body.has-particle-system in style.css). This one card frame gets
-         repopulated with each project's content as particles assemble/
-         disperse around it — see projects-progress.js -->
-    <div class="project-stage" id="projectStage">
-      <div class="project-stage__head">
-        <span class="project-stage__id" id="stageId"></span>
-        <span class="project-stage__category" id="stageCategory"></span>
-      </div>
-      <h3 class="project-stage__title" id="stageTitle"></h3>
-      <p class="project-stage__desc" id="stageDesc"></p>
-      <ul class="project-stage__stack" id="stageStack"></ul>
-      <div class="project-stage__links" id="stageLinks"></div>
-    </div>
 
     <div class="jobs">
 
@@ -341,7 +330,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script src="script.js"></script>
-<script src="site-particles.js"></script>
+<script src="hero-medallion.js"></script>
 </body>
 </html>
 
