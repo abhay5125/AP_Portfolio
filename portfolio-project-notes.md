@@ -109,6 +109,124 @@ The biggest single build so far. Replaced `hero-animation.js` entirely with one 
 
 **Genuinely untested numbers, flagged in the code comments:** the scroll distance for the hero pin (`+=2500`) and for the projects pin (`+=6000`) are both estimates. Almost certainly need adjusting once you actually scroll through it live — that's expected, not a sign something's broken.
 
+### 8. End-of-session review — critique and open decisions (stopped here for today)
+
+**What's working well, don't touch further:** the hero particle assembly. Convergence looks good after the bugfix pass, motif is clear, appropriately impressive for the effort.
+
+**What isn't working — honest critique:** the projects particle-card. Root cause diagnosed as more than just bugs: tracing a full rectangle *perimeter* with particles spreads them thin along boring straight edges, which doesn't give the same satisfying "gathering into a blob" feeling the hero's six clustered nodes have. This is likely the real reason it reads as "not fluid," more than any single bug.
+
+**Bugs still open, with causes understood (not yet fixed):**
+- **Projects card still clips at the bottom of the viewport** (improved by the padding/max-height fix, but not solved). Real fix identified: the pin currently covers the *entire* projects section (heading, intro, dots, card together) — should instead pin a smaller wrapper containing just the dots + card, letting the heading/intro scroll away normally first, reclaiming much more vertical space.
+- **Particles disperse very slowly after settling at the footer, and don't reconverge the same way on a second pass.** Root cause: the shared particle pool means particles that got pulled into a tight cluster at the footer keep that clustered starting position next time they're needed for the hero or a project — so the second convergence looks like a small blob migrating into place, not the original organic scattered-field-converging look. This is a sign the "one shared pool touches literally everything, including the footer" design is now costing more than it's giving.
+
+**Brainstormed directions for the projects section** (see chat for full detail on each):
+1. Icon-only focus — drop particle-formed card outline entirely, keep the DOM card fully static/CSS-driven, particles only morph the small signature icon between projects.
+2. Add motion trails — stop fully clearing the canvas each frame, let old positions fade instead of vanish. Cheap, big fluidity improvement, compatible with any other option.
+3. Constellation/graph view — show all four project icons at once as a connected diagram, particles flow along connecting lines rather than forming outlines. Biggest structural change, leans hardest into the original "data flowing through a system" idea.
+4. SVG icon morphing instead of canvas particles — trades organic particle feel for reliability and simplicity.
+5. Spring-physics particle motion — organic "flocking" instead of each dot easing independently to its target. Best paired with option 1.
+
+**My recommendation, not yet decided on:** combine option 1 + option 2 — best ratio of fixing the actual complaint to build effort, and structurally prevents the clipping bug rather than just patching around it.
+
+**Open questions for next session:**
+- Which brainstormed direction (or combination) to pursue?
+- Okay to drop "particles form the whole card outline" as a concept?
+- How important is literal particle continuity (same dots traveling the whole page) vs. same visual language without literal continuity? Relaxing this would let the footer use its own small dedicated particle set instead of reaching into the shared pool — fixes the reconvergence bug, less architecturally ambitious.
+- Primary screen size/browser being used to test, to design layout fixes realistically.
+
+**Also discussed:** whether to move to Claude Code for the remaining build items, since the download/replace/push loop is slow for this kind of iterative debugging. Decided to finish the current debugging round here; worth reconsidering Claude Code for Skills section / dividers / polish once projects is settled.
+
+### 9. Strategic pivot — moving away from the continuous particle system
+
+After the stage 4 debugging session, decided to step back rather than keep patching. Explicit new constraints for the next direction:
+- Stay 2D — confirmed again, no WebGL (this was prompted by looking at an extremely ambitious WebGL/Three.js reference portfolio for inspiration; decided the *structural* ideas were worth adopting, not the tech stack).
+- Drop the "one shared particle pool touches the whole page" architecture — it was the root cause of most of the stage 4 bugs.
+- Drop particles forming the full project card outline — the actual complaint was that it didn't look fluid, not just that it was buggy.
+- Keep wanting *some* animation throughout the site — just lighter-weight and more reliable.
+- Liked ideas: the flight-plan/mission nav concept, and especially the orbit/constellation idea for projects.
+- Motion trails, from the earlier brainstorm list, specifically requested as a replacement for the old ambient background particles.
+- Project detail pages: still planned, but explicitly *after* the main layout/animation rework is settled, not before.
+- **Smoothness is the top priority** for whatever direction gets chosen next — explicitly more important than visual ambition.
+
+**Three new concepts proposed** (full detail in chat):
+1. Flight-plan nav strip + orbiting projects diagram, CSS-driven transitions, trail accents on project-to-project movement. Hero mostly untouched.
+2. Vertical mission-timeline rail + short triggered-once "docking sequence" animations per project (not scroll-scrubbed), sitewide cursor-trail effect. Flagged as the safest choice for smoothness specifically.
+3. One persistent small orbit widget as both the sitewide nav and the animation system, unifying hero/nav/projects into one object. Most elegant, most structurally ambitious/risky.
+
+**Not yet decided** — user is bringing follow-up ideas before committing to one.
+
+### 10. Concept 1 — locked plan (before build starts)
+
+**Decided:**
+- Satellite-node click → inline summary brief → button to full project detail page (built later, placeholder for now)
+- Flight-plan strip appears once scrolled past hero, separate from main nav
+- Jump-nav enabled — relies on the site's existing `scroll-behavior: smooth`, so clicks animate rather than snap
+- Mobile: simplified version is fine, not full parity with desktop
+- Placeholder content system for now, real copy swapped in later
+- ~1 week of non-consecutive effort budgeted; prioritize build speed without losing understanding
+- Documentation style: tighter prose, teaching happens mainly through well-commented code, notes file kept current throughout
+- Mid-build adjustments and multiple drafts expected and fine
+
+**Hero rework — direction chosen:** combine "traveling entity" + "medallion architecture." Instead of particles converging into a generic pipeline, a single glowing entity travels along a path through real Bronze/Silver/Gold stages (a pattern actually used in the NYC delivery project), with each stage lighting up and revealing a short blurb as the entity arrives, tied to scroll position. Rejected: star schema layout (too visually similar to the projects node-graph, would feel repetitive).
+
+**Projects — direction chosen:** a node-graph/network diagram (not a literal orbit) — deliberately chosen because it mirrors how orchestration tools like Airflow actually visualize pipelines, which is more authentic for a data engineer's site than a solar-system metaphor. Per-project icons (bee/insect for MAV, line chart for trading, scooter for delivery, F1 car silhouette) sit at each node, reusing icon designs from the earlier particle-card work.
+
+**Immersion ideas for the node-graph, to build in:**
+- Edges represent real shared skills/tools between projects, not decoration
+- Hovering a node/edge highlights shared tags across the graph
+- Depth-of-field: active node full clarity, others dimmed/blurred (CSS filter, cheap)
+- A slow idle "scan" sweep across the graph as ambient motion, tying into the telemetry voice already used sitewide
+
+**Resolved:** satellite project confirmed added — now 5 nodes in the projects graph, not 4. Hero direction (medallion architecture + traveling entity) confirmed, no changes wanted.
+
+**Card field structure, confirmed:** Title, What involved, Tools, Status, Category — same fields for all five project summary briefs. Detail pages (results, images) stay deferred; main page comes first for a working base.
+
+**Satellite project content:** placeholder for now (Title / What involved / Tools / Status / Category all blank), same treatment as the future detail pages — to be filled in later. Icon plan: a simplified satellite silhouette, reusing/simplifying the satellite concept sketched earlier in this project during hero-concept brainstorming (before medallion architecture was chosen instead).
+
+**PLAN FULLY LOCKED as of this point.** Every open item from the Concept 1 discovery process is resolved. Next step is building, in whichever tool is chosen (this chat / Claude Code / Opus — see tooling plan above).
+
+**Tooling plan:** Claude Code once active iterative building starts (skips the download/replace/push loop, matters more given the non-consecutive time budget). Opus specifically reserved for the projects node-graph system — the most architecturally complex remaining piece, worth getting right on a strong first pass.
+
+### 11. Stage 5 — medallion hero built, old particle system retired
+
+First build step of the locked Concept 1 plan. Two things in one step, because tearing out the old system alone would have left the site with no animation at all.
+
+**Removed:**
+- `site-particles.js` — deleted entirely (delete this from your repo too, it's no longer referenced)
+- The full-viewport `<canvas>`, the `project-stage` content-swap element, the progress dots, and all their CSS
+- The old generic API/Postgres/S3 → ETL → Warehouse pipeline SVG
+
+**Built:** the new hero — Bronze/Silver/Gold medallion stages with one glowing entity travelling through them as you scroll. Each stage lights up in its own colour and reveals its blurb as the entity arrives.
+
+**Why this is a much better foundation than the old version:** the previous system hand-drew ~220 particles on a canvas every frame. This moves ONE existing SVG element and toggles a few CSS classes — the browser does all the actual drawing. Far smoother, far less code that can go wrong, and it directly serves the "smoothness is the top priority" constraint.
+
+**The key technique, worth remembering:** SVG paths have built-in `getTotalLength()` and `getPointAtLength()` methods. "Put the dot 40% along this track" is one line of code, and it works for any path shape — if the track is curved later, the code needs no changes.
+
+**Also added:** the `--ease-flight` easing token (from design-system.md, animation principle 1) and `--amber-dim`, both of which were referenced in the design system but never actually existed in the CSS until now.
+
+**Pin distance set to 1400px** (down from 2500 in the old build) — deliberately shorter, because long pins make scrolling back *up* tedious with scrubbed animations. It's a single number at the top of `hero-medallion.js` (`PIN_DISTANCE`), easy to tune.
+
+**Still to come:** flight-plan nav strip, projects node-graph (5 nodes, Opus-recommended), skills section, dividers, polish, detail pages.
+
+### 12. Medallion boxes rejected — hero rebuilt around particles again
+
+The stage 5 medallion hero (three stage boxes + a dot travelling through) was rejected as less impressive than the particle version. Git reverted to the particle build. Stage 5's files are abandoned.
+
+**Key realisation:** the particle hero was never the thing that was broken. The stage-4 failures were the *projects* card and the shared-pool architecture. The hero's convergence was explicitly signed off earlier as "looks good, don't touch further."
+
+**New direction — full spec in `hero-architecture-spec.md`.** Headlines:
+- The particle system *is* the hero. No two-column "text + graphic" layout — full-viewport interactive scene with typography living inside it.
+- Particles get **lifecycles, not destinations** — they continuously spawn left, flow right, exit, respawn. This is the single change that fixes "everything parks and feels mechanical."
+- Bronze/Silver/Gold expressed purely through particle *behaviour* (turbulence, lane snapping, speed uniformity, density) rather than any boxes or UI.
+- `order = xFraction × scrollProgress` — one formula drives everything. Scroll feels like powering up the pipeline.
+- Two independent systems: the rAF loop always runs (motion), ScrollTrigger only sets state. This separation is what guarantees continuous motion.
+- Motion trails via `globalCompositeOperation = 'destination-out'` (erasing, not painting — required because the canvas is transparent over the grid overlay).
+- Spring physics with velocity + damping instead of exponential easing, which mathematically can never overshoot — that was why the old motion felt mechanical.
+- Turbulence via sum-of-sines, no noise library needed.
+- WebGL explicitly ruled out as unnecessary at this particle count, and counterproductive for the learning goal.
+
+**Build split into 8 stages (A–H)** in the spec. Stages C and D are the architecturally hard parts.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 
