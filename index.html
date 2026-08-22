@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 
@@ -34,70 +34,33 @@
 
 <main>
 
-  <!-- ============ HERO ============ -->
+  <!-- ============ HERO ============
+       Stage A composition (see hero-architecture-spec.md).
+
+       Why this looks so bare compared to before: the spec calls for the
+       hero to be ONE full-viewport scene — the particle canvas IS the
+       hero — rather than the old "text column on the left, SVG diagram
+       on the right" layout. So this section now holds only the three
+       text elements the spec allows:
+         1. the name           (.hero__name)
+         2. the role/title     (.hero__role)
+         3. a one-line tagline (.hero__tagline)
+       No buttons, no eyebrow label, no diagram markup. Adding more here
+       would compete with the particle animation for attention.
+
+       The particle canvas itself doesn't need to be re-declared inside
+       this section: <canvas id="siteParticles"> further up this file is
+       already `position: fixed` and sized to the full viewport (see the
+       `.site-particles` rule in style.css), so it already sits behind
+       this section — and every other section — automatically. Stage A
+       just reuses it as-is; nothing about the canvas changes here. -->
   <section class="hero" id="hero">
-    <div class="hero__text">
-      <p class="eyebrow">// role: data_engineer - data_analyst</p>
-      <h1 class="hero__title">Abhay Patel</h1>
-      <p class="hero__subtitle">
-        Data Engineering Consultant, BEng in Aerospace Engineering
+    <div class="hero__content">
+      <h1 class="hero__name">Abhay Patel</h1>
+      <p class="hero__role">Data &amp; AI Engineering</p>
+      <p class="hero__tagline">
+        Aerospace engineer turned data engineer — I turn raw, messy data into decisions.
       </p>
-      <p class="hero__desc">
-        I'm an Engineering graduate turned Data professional, with a passion for technology
-        problem-solving, and continuous learning. I work on projects that combine analytical 
-        thinking with practical solutions, ranging from building scalable data pipelines to high-grade, data-driven
-        solutions.
-      </p>
-      <div class="hero__actions">
-        <a href="#projects" class="btn btn--primary">View projects</a>
-        <a href="#contact" class="btn btn--ghost">Get in touch</a>
-      </div>
-    </div>
-
-    <div class="hero__diagram" aria-hidden="true">
-      <svg viewBox="0 0 640 420" xmlns="http://www.w3.org/2000/svg" class="pipeline-svg hero__diagram-fallback">
-        <!-- connecting lines -->
-        <g class="pipe-lines" fill="none" stroke-width="2">
-          <path class="pipe-line" d="M110,80 C200,80 200,190 280,190" />
-          <path class="pipe-line" d="M110,190 C200,190 200,190 280,190" />
-          <path class="pipe-line" d="M110,300 C200,300 200,190 280,190" />
-          <path class="pipe-line pipe-line--out" d="M360,190 C440,190 440,110 520,110" />
-          <path class="pipe-line pipe-line--out" d="M360,190 C440,190 440,300 520,300" />
-        </g>
-
-        <!-- source nodes -->
-        <g class="node" transform="translate(30,55)">
-          <rect width="80" height="50" rx="8"/>
-          <text x="40" y="30" text-anchor="middle">API</text>
-        </g>
-        <g class="node" transform="translate(30,165)">
-          <rect width="80" height="50" rx="8"/>
-          <text x="40" y="30" text-anchor="middle">Postgres</text>
-        </g>
-        <g class="node" transform="translate(30,275)">
-          <rect width="80" height="50" rx="8"/>
-          <text x="40" y="30" text-anchor="middle">S3 logs</text>
-        </g>
-
-        <!-- transform node -->
-        <g class="node node--core" transform="translate(280,150)">
-          <rect width="80" height="80" rx="10"/>
-          <text x="40" y="37" text-anchor="middle">ETL</text>
-          <text x="40" y="55" text-anchor="middle" class="node__sub">transform</text>
-        </g>
-
-        <!-- destination nodes -->
-        <g class="node node--dest" transform="translate(520,85)">
-          <rect width="90" height="50" rx="8"/>
-          <text x="45" y="30" text-anchor="middle">Warehouse</text>
-        </g>
-        <g class="node node--dest" transform="translate(520,275)">
-          <rect width="90" height="50" rx="8"/>
-          <text x="45" y="30" text-anchor="middle">Dashboard</text>
-        </g>
-
-        <text x="320" y="400" text-anchor="middle" class="diagram-caption">status: healthy · latency: 4m12s</text>
-      </svg>
     </div>
   </section>
 

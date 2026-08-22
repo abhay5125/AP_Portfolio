@@ -76,7 +76,8 @@ img, svg { display: block; max-width: 100%; }
    viewport coordinates the whole time. Sits above the background grid but
    below all real content (.hero/.section have z-index:1), so particles
    never visually cover text — they only show through wherever the content
-   layer has empty space (e.g. the hero__diagram column, page margins). */
+   layer has empty space (the hero's centred text leaves most of the
+   viewport open, and every section has margins on either side). */
 .site-particles {
   position: fixed;
   inset: 0;
@@ -177,66 +178,107 @@ img, svg { display: block; max-width: 100%; }
 
 /* ============================================
    HERO
+   Stage A composition — see hero-architecture-spec.md.
+
+   The hero is one full-viewport scene, not a two-column "text on the
+   left, picture on the right" block. The particle canvas
+   (#siteParticles — see the ".site-particles" rule near the top of this
+   file) is `position: fixed` and already covers the whole viewport, so
+   it sits behind every section on the page automatically, hero
+   included. All this section has to do is (a) be tall enough to fill
+   the screen, and (b) centre its text above that canvas. `z-index: 1`
+   is what does job (b): the canvas and the background grid are both
+   `z-index: 0`, and any higher z-index — even without a specific
+   number chosen carefully — paints in front of them.
    ============================================ */
 .hero {
-  position: relative;
+  position: relative; /* required for z-index below to have any effect —
+                          z-index is ignored on statically-positioned
+                          elements */
   z-index: 1;
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: clamp(3rem, 8vw, 6rem) clamp(1.25rem, 5vw, 2rem) 4rem;
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 3rem;
+
+  /* Fill the browser window on load. `100vh` is the safe fallback for
+     older browsers; `100dvh` ("dynamic viewport height") is the modern,
+     more accurate unit — on mobile it accounts for the address bar
+     showing/hiding, which plain `vh` doesn't. Browsers that don't know
+     `dvh` ignore that whole line and keep using the `vh` one above it,
+     so this is a "best value wins" pair, not a bug. */
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  /* Centre the text block both horizontally and vertically, like a
+     title card in the middle of a full-screen scene. */
+  display: flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  padding: clamp(1.5rem, 5vw, 3rem);
 }
 
-.hero__title {
+/* The three text elements live inside this wrapper (rather than being
+   centred individually) so they move and wrap together as one column,
+   and so `max-width` below can stop the tagline stretching edge to
+   edge on wide screens. */
+.hero__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.6rem, 2vw, 1rem);
+  max-width: 46rem;
+}
+
+/* Text element 1/3 — the name. This is the page's only <h1>, and the
+   only place on the whole site that uses font-weight 700 — every other
+   heading tops out at 600, so this one spot reads as the heaviest,
+   most important text on the page (see design-system.md). */
+.hero__name {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(2.6rem, 6vw, 4.2rem);
-  line-height: 1.05;
-  letter-spacing: -0.01em;
-  margin-bottom: 1.1rem;
+  font-size: clamp(2.6rem, 4vw + 1.8rem, 5.5rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em; /* large display type reads as looser than it
+                               is; a little negative tracking corrects
+                               that at big sizes */
+  text-transform: uppercase; /* the HTML below still says "Abhay Patel"
+                                 in normal case — screen readers read
+                                 that naturally as two words. Doing the
+                                 all-caps look in CSS instead of typing
+                                 it in caps keeps the markup readable
+                                 and easy to change later. */
+  color: var(--text); /* explicit, even though this matches the page's
+                          default text colour, so it's obvious at a
+                          glance rather than relying on inheritance */
 }
 
-.hero__subtitle {
-  font-size: 1.2rem;
-  color: var(--text);
-  max-width: 34ch;
-  margin-bottom: 1.1rem;
+/* Text element 2/3 — the role. Monospace and teal, deliberately styled
+   like the "// 0X_section" eyebrow labels used elsewhere on the site,
+   so it reads as a system label sitting just under the headline. */
+.hero__role {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: clamp(0.95rem, 0.5vw + 0.85rem, 1.2rem);
+  letter-spacing: 0.14em; /* wide tracking is what makes small mono text
+                              read as a "label" rather than a sentence */
+  text-transform: uppercase;
+  color: var(--teal);
 }
 
-.hero__desc {
+/* Text element 3/3 — the one-line summary. Muted so it doesn't compete
+   with the name above it, and width-limited in "ch" units (1ch = the
+   width of one "0" character in this font) so the line wraps at a
+   comfortable reading length instead of stretching full-width. */
+.hero__tagline {
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 0.3vw + 0.95rem, 1.15rem);
   color: var(--text-muted);
   max-width: 42ch;
-  margin-bottom: 2rem;
 }
 
-.hero__actions {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-/* These start hidden only once JS confirms the particle hero is running,
-   and get revealed progressively as the user scrolls through the pinned
-   hero (see hero-animation.js). Without JS, or with reduced motion, none
-   of this applies and the text is visible immediately as it is today. */
-body.has-particle-system .hero__subtitle,
-body.has-particle-system .hero__desc,
-body.has-particle-system .hero__actions {
-  opacity: 0;
-  transform: translateY(12px);
-  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-body.has-particle-system .hero__subtitle.is-revealed,
-body.has-particle-system .hero__desc.is-revealed,
-body.has-particle-system .hero__actions.is-revealed {
-  opacity: 1;
-  transform: translateY(0);
-}
-
+/* ---- shared button style ----
+   Not used in the hero any more (Stage A removed the hero CTA buttons —
+   the spec calls for three text elements only), but kept here because
+   the Contact section's email/GitHub/LinkedIn links still use it. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -263,72 +305,13 @@ body.has-particle-system .hero__actions.is-revealed {
 }
 .btn--ghost:hover { border-color: var(--teal); color: var(--teal); }
 
-/* ---- pipeline diagram ---- */
-.hero__diagram {
-  width: 100%;
-  position: relative;
-  aspect-ratio: 640 / 420; /* matches the fallback SVG's viewBox proportions */
-}
-
-/* JS adds this class to <body> only after checking prefers-reduced-motion
-   and confirming canvas is supported. No JS, or reduced motion: the
-   fallback SVG below stays visible exactly as it is today. */
-body.has-particle-system .hero__diagram-fallback { display: none; }
-
-/* Projects: same pattern — .jobs is the static fallback grid, .project-stage
-   is the single card that gets repopulated as particles cycle through each
-   project. Only one of the two is ever visible. */
+/* Projects: .jobs is the static fallback grid, .project-stage is the
+   single card that gets repopulated as particles cycle through each
+   project. Only one of the two is ever visible. Unrelated to the hero
+   rebuild above — left exactly as it was. */
 body.has-particle-system .jobs { display: none; }
 body.has-particle-system .project-stage { display: block; }
 body.has-particle-system .projects-progress { display: flex; }
-
-.pipeline-svg .node rect {
-  fill: var(--panel);
-  stroke: var(--panel-border);
-  stroke-width: 1.5;
-}
-.pipeline-svg .node text {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  fill: var(--text);
-}
-.pipeline-svg .node__sub {
-  fill: var(--text-muted);
-  font-size: 11px;
-}
-
-.pipeline-svg .node--core rect {
-  fill: var(--teal-dim);
-  stroke: var(--teal);
-}
-.pipeline-svg .node--core text { fill: var(--teal); }
-
-.pipeline-svg .node--dest rect {
-  stroke: var(--amber);
-}
-
-.pipeline-svg .pipe-line {
-  stroke: var(--panel-border);
-  stroke-dasharray: 6 6;
-}
-.pipeline-svg .pipe-line--out {
-  stroke: var(--teal);
-  animation: flow 3s linear infinite;
-}
-
-@keyframes flow {
-  to { stroke-dashoffset: -120; }
-}
-
-.diagram-caption {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  fill: var(--text-muted);
-}
-
-@media (max-width: 900px) {
-  .hero { grid-template-columns: 1fr; }
-}
 
 /* ============================================
    SECTIONS (shared)
