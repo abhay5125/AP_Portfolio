@@ -346,6 +346,20 @@ Particles: dropped the old per-category amber/teal/purple system - each particle
 
 Kept `--amber`/`--purple` defined (retuned to muted tones) since the job cards' category colour-coding still uses them - out of scope to redesign that here.
 
+### 21. Stage 6 - hardening pass, the last one on the list
+
+Went through the spec's performance checklist item by item. Two real problems turned up:
+
+**1. The devicePixelRatio cap had gone missing.** It was added a few stages back but got wiped out when we reverted the whole file back to the Stage B baseline (that revert brought back the pre-cap version of `resizeCanvas`, and nothing re-added it after). So on a retina screen the canvas had quietly gone back to rendering at full native resolution - up to 9x more pixels per frame than needed, on the single most expensive operation in the file (the full-canvas repaint every frame). Capped it again at 2x (1.5x on low-power devices), confirmed with a real test at three different pixel ratios that it's actually clamping now.
+
+**2. `getBoundingClientRect` was being called inside the animation loop, three times.** The project card's position and the footer's position were both being re-measured from the DOM every single frame, which is exactly the layout-forcing cost the spec warns against - technically "once per frame" rather than "once per particle," but the rule doesn't have an exception for that. Fixed by caching both: the project card's position now only gets re-measured when a different project actually scrolls into view (it doesn't move otherwise, it's pinned), and the footer's position is cached once relative to the whole document, then turned into an on-screen position each frame with plain subtraction against the scroll offset - arithmetic, not a DOM read. Measured actual call counts before and after: it used to scale directly with how long you'd been scrolling, now it's a flat number that doesn't grow at all.
+
+**Also found and fixed a bug in the new footer-exit decoration** while testing it: particles were correctly skipping the wrap at the bottom edge, but then had nothing pushing them any further, so they just hovered right at the boundary instead of ever actually leaving. Simplified it to respawn the moment it crosses the edge rather than waiting for it to travel further first. Confirmed it works, though it's genuinely rare to see in the wild - only about 1 in 8 particles carry the trait at all, and only near the very bottom of the page, which is intentional (spec calls it "a few," not a constant effect).
+
+**Everything else checked out already correct, no changes needed:** particle budget (250 desktop / 100 low-power, confirmed both branches directly), pausing when the tab's hidden, no `shadowBlur` anywhere, and the reduced-motion fallback (checked properly - with it on, the script does nothing at all, the plain job cards show up instead, and the hero text is still there and readable without any JS).
+
+**Status: all six stages built.** Colour, motion, scroll-tied intensity, interactions, palette, hardening - done.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 
