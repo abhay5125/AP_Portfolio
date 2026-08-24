@@ -4,28 +4,24 @@
 // drawn in viewport coordinates the whole time — it never scrolls with
 // the page. Three independent things share it:
 //
-//   1. HERO FLOW (Stage B — see hero-architecture-spec.md). A dedicated
-//      pool of particles that continuously spawn at the left edge, drift
-//      right, and respawn at the left once they exit the right edge.
-//      They never ease toward a fixed target — see "Core architectural
-//      principle" in the spec for why that matters. No scroll dependency
-//      yet: that's Stage C, which will use scroll position to make the
-//      flow feel more "ordered" from left to right.
+//   1. HERO FLOW — see the big comment block further down for the full
+//      story. Short version: a pool of particles that just drift around
+//      like smoke, no scroll involvement, no pinning. Following the plan
+//      in hero-architecture-spec.md's AMENDMENT at the top of that file
+//      (the original pinned/lane-based plan further down that doc was
+//      tried, looked worse, and got dropped — the amendment is the real
+//      plan now).
 //   2. PROJECTS — a separate pool of particles that assembles into each
 //      project's card outline + signature icon as you scroll through the
-//      projects section, built in an earlier stage and unrelated to the
-//      hero rebuild.
+//      projects section. Built earlier, unrelated to the hero flow, not
+//      touched by any of this.
 //   3. AMBIENT — a small pool that just drifts gently in the background
 //      everywhere on the page, whenever it isn't needed for #2.
 //
-// These used to share one combined pool with the *old* hero animation
-// (see git history / hero-architecture-spec.md's "Discard" list) — that
-// coupling was the root cause of a class of bugs, so Stage B gives hero
-// its own independent pool instead of reusing the projects/ambient one.
-//
 // Every frame also erases the canvas a little instead of clearing it
 // outright, which is what gives every particle its short motion trail —
-// see the top of draw() below.
+// see the top of draw() below. (Known issue with this specific technique,
+// not being fixed yet — see portfolio-project-notes.md.)
 //
 // Safety: if canvas, GSAP, or ScrollTrigger aren't available, or the
 // visitor has "reduce motion" turned on, this script does nothing and
@@ -92,21 +88,34 @@
   var easeInOut = gsap.parseEase('power2.inOut');
 
   // =====================================================================
-  // HERO — continuous flow particles (Stage B)
+  // HERO — flow field particles (Stage 2 of the new plan)
   //
-  // The whole idea, straight from hero-architecture-spec.md's "Core
-  // architectural principle": particles have LIFECYCLES, not
-  // DESTINATIONS. Every particle just keeps doing the same loop forever:
+  // This follows the "one motion rule" from the amendment at the top of
+  // hero-architecture-spec.md:
   //
-  //     spawn at the left edge -> drift right -> exit the right edge -> respawn at the left
+  //     velocity = turbulence(x, y, time) + rightward_bias
   //
-  // It never eases toward a fixed (x, y) target the way the old hero
-  // pipeline animation did (that's the "target-point convergence model"
-  // the spec explicitly says to discard — it's what made the old version
-  // feel mechanical and "parked" once it finished). There's no scroll
-  // logic here at all yet — Stage C is what will make this flow feel
-  // more "ordered" as you scroll; for now it just runs continuously as
-  // an ambient effect, which is exactly what Stage B asks for.
+  // In plain terms: every particle is nudged around by the same swirling
+  // "wind" pattern (the turbulence part), and on top of that, everything
+  // gets a small constant push to the right (the bias part). Nothing
+  // pulls a particle toward a destination — it just keeps drifting
+  // forever, spawning on the left and fading back in on the left again
+  // once it wanders off the right-hand side.
+  //
+  // What that looks like: short-term, a particle's path curves and loops
+  // — the swirl is usually stronger than the constant push, so it can
+  // even drift backwards for a moment. But the rightward push never lets
+  // up, while the swirl averages out to roughly nothing over time, so
+  // zoom out a few seconds and every particle has clearly drifted
+  // rightward. That's the "smoke in moving air" feel the amendment asks
+  // for, rather than particles all marching right in a straight line
+  // like items on a conveyor belt.
+  //
+  // No scroll involvement at all yet — that's Stage 3, which will bring
+  // in one `intensity` number driven by how far down the page you've
+  // scrolled, and use it to turn the turbulence/speed/density up or down.
+  // For now this just needs to look good sitting still, which is exactly
+  // what Stage 2 is asking for.
   // =====================================================================
 
   // Budget from the spec's "Performance constraints": ~250 particles on
@@ -137,11 +146,15 @@
   // an abrupt pop-in. false is only used for the very first fill, so the
   // hero doesn't look empty for a moment while everything walks in from
   // the left on page load.
+  //
+  // Note there's no vx/vy stored on the particle any more. Under the old
+  // spring-based motion, velocity had to persist and build up between
+  // frames. Under the flow field, velocity is worked out completely
+  // fresh every single frame from the particle's current position — see
+  // drawHeroParticles() below — so there's nothing to store here.
   function resetHeroParticle(p, spawnAtLeftEdge) {
     p.x = spawnAtLeftEdge ? -HERO_EDGE_MARGIN - Math.random() * 60 : Math.random() * window.innerWidth;
     p.y = Math.random() * window.innerHeight;
-    p.vx = 0.4 + Math.random() * 0.8; // base rightward speed — varied per particle, so the flow doesn't move in lockstep
-    p.vy = 0;                          // vertical velocity builds up from turbulence, below
     p.r = Math.random() * 1.4 + 0.6;
     p.alpha = Math.random() * 0.35 + 0.35;
     p.phase = Math.random() * Math.PI * 2; // offsets each particle's turbulence so they don't all wobble in sync
@@ -156,24 +169,48 @@
   }
   createHeroParticles();
 
+  // How strong the swirling "wind" is versus the constant rightward
+  // push. Turbulence deliberately outweighs the bias — that's what lets
+  // paths curve and even briefly reverse, rather than every particle
+  // just sliding rightward in a straight line. One tuning knob each, so
+  // it's easy to nudge the balance later without hunting through the
+  // maths below.
+  var HERO_TURBULENCE_STRENGTH = 0.85; // px/frame, roughly — the wind
+  var HERO_RIGHTWARD_BIAS = 0.35;      // px/frame, constant — the current
+
   function drawHeroParticles() {
     for (var i = 0; i < heroParticles.length; i++) {
       var p = heroParticles[i];
 
-      // The flow: continuous rightward motion. This one line is the
-      // entire "spawn left -> flow right" idea from the spec.
-      p.x += p.vx;
+      // ---- THE WIND: turbulence(x, y, time), as two numbers ----
+      // This is the exact same sum-of-sines shape used in the old
+      // vertical-only version — Math.sin(...) * Math.cos(...) — just
+      // sampled twice, once to push sideways and once to push up/down.
+      //
+      // The two samples deliberately don't use identical numbers: X and
+      // Y are swapped between them, and the speed each one moves at over
+      // time is different (heroTime * 0.8 vs heroTime plain). If both
+      // used the exact same formula, sideways and up/down motion would
+      // rise and fall in lockstep and the whole thing would just look
+      // like the field breathing in and out together. Making them
+      // slightly different is what breaks that symmetry and turns it
+      // into the individual loops and curls that read as "smoke."
+      var windX = Math.sin(p.y * 0.013 + heroTime * 0.8 + p.phase) * Math.cos(p.x * 0.010 - heroTime * 0.5 + p.phase);
+      var windY = Math.sin(p.x * 0.010 + heroTime + p.phase) * Math.cos(p.y * 0.013 - heroTime * 0.7 + p.phase);
 
-      // Turbulence: the spec's sum-of-sines flow field, which gives a
-      // smooth, organic wobble instead of a perfectly flat horizontal
-      // line. `p.phase` staggers it per-particle. In Stage C this
-      // strength will be driven by (1 - order) so it damps out toward
-      // the "ordered" side of the screen — for now it's just a constant,
-      // since Stage B has no order/scroll concept yet.
-      var drift = Math.sin(p.x * 0.01 + heroTime + p.phase) * Math.cos(p.y * 0.013 - heroTime * 0.7);
-      p.vy += drift * 0.03;
-      p.vy *= 0.94; // damping, so vy settles instead of drifting further and further every frame
-      p.y += p.vy;
+      // ---- VELOCITY = WIND + CURRENT ----
+      // Worked out completely fresh, every frame, from this particle's
+      // position right now — nothing here is added to or carried over
+      // from last frame. That might sound like it should look jerky, but
+      // it doesn't: the sine/cosine waves above only change gradually as
+      // x, y and time creep forward a tiny bit each frame, so the numbers
+      // they produce only creep too. Smooth inputs, smooth outputs — no
+      // momentum/carry-over needed to make it look fluid.
+      var vx = windX * HERO_TURBULENCE_STRENGTH + HERO_RIGHTWARD_BIAS;
+      var vy = windY * HERO_TURBULENCE_STRENGTH;
+
+      p.x += vx;
+      p.y += vy;
 
       // Wrap vertically. The hero is a self-contained scene (not a tall
       // page section), so a particle that drifts off the top/bottom just
@@ -181,18 +218,17 @@
       if (p.y < 0) p.y = window.innerHeight;
       if (p.y > window.innerHeight) p.y = 0;
 
-      // Lifecycle, not destination: once a particle has drifted past the
-      // right edge, it respawns at the left and starts the same loop
-      // again — it never "arrives" anywhere and stops.
+      // Once a particle has drifted past the right edge, respawn it at
+      // the left and let it start the same wandering loop again — it
+      // never "arrives" anywhere, it just keeps flowing.
       if (p.x > window.innerWidth + HERO_EDGE_MARGIN) {
         resetHeroParticle(p, true);
       }
 
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      // Bronze/raw-data colour for the whole flow, per the spec's colour
-      // table — Stage C introduces the amber -> teal gradient as order
-      // rises; Stage B has no order concept yet, so everything is Bronze.
+      // Plain amber for now — no scroll-driven colour shift yet, that's
+      // Stage 3+ territory once the `intensity` parameter exists.
       ctx.fillStyle = rgba(COLORS.amber, p.alpha);
       ctx.fill();
     }

@@ -295,6 +295,22 @@ Supersedes the Orbital Migration recommendation from entry 14/`particle-system-c
 
 **Status: ready to build again.** Next action is Stage 1 in Claude Code.
 
+### 17. Stage 1 (revert) and Stage 2 (flow field) — both done
+
+**Stage 1, confirmed working.** Wiped `site-particles.js` back to exactly the Stage B commit — no picking-and-choosing which bits of the old lane/pin code to remove, just a clean reset to the last version we know looked good. Checked it against that old commit line by line to be sure it actually matched, and ran the site to confirm nothing broke.
+
+**Stage 2: the actual motion is rewritten.** This is the "one motion rule" from the spec amendment — `velocity = turbulence(x, y, time) + rightward_bias` — replacing the old spring/vertical-wobble approach.
+
+What changed, in normal words: before, particles had a fixed sideways speed picked once when they spawned, and only bounced up and down. Now there's no fixed speed at all — every frame, each particle looks at where it currently is and works out two things: which way the "wind" is blowing right there (using the same wavy sine/cosine trick that was already in the code, just used for both directions now instead of one), and a small constant push to the right. Add those together and that's the speed and direction it moves for that frame. Next frame, same thing again from scratch.
+
+Why that matters: the wind is stronger than the constant push, so short bursts of moving backwards or sideways happen naturally — it's not gliding in a dead straight line. But the wind evens out over time (it swings positive and negative), while the rightward push never stops, so if you watch any one particle for a few seconds it's clearly drifted right overall. That's the "smoke in moving air" look instead of "conveyor belt."
+
+Checked this properly rather than just eyeballing it — tracked a bunch of particles for 8 seconds each: all of them ended up further right than they started, and all but one of them moved backwards at some point along the way. So both halves of the brief are actually true, not just visually plausible.
+
+**Left alone on purpose:** the trail-residue bug is back (it always comes back whenever we revert to Stage B, since the fix for it was part of the newer work we un-did). Not fixing it now — we said we'd deal with it once every stage is built, so leaving it as a known thing for later, not forgetting about it.
+
+**What's next:** Stage 3 — tying an `intensity` number to how far down the page you've scrolled, so the whole field visibly calms down or livens up as you scroll, still with no pin anywhere.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 
