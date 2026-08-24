@@ -5,23 +5,26 @@
 // the page. Three independent things share it:
 //
 //   1. HERO FLOW — see the big comment block further down for the full
-//      story. Short version: a pool of particles that just drift around
-//      like smoke, no scroll involvement, no pinning. Following the plan
-//      in hero-architecture-spec.md's AMENDMENT at the top of that file
-//      (the original pinned/lane-based plan further down that doc was
-//      tried, looked worse, and got dropped — the amendment is the real
-//      plan now).
+//      story. Short version: a pool of particles that drift around like
+//      smoke, with no pinning anywhere — but their overall energy
+//      (turbulence, speed, how many are visible, how much their size
+//      varies) is tied to how far down the page you've scrolled.
+//      Following the plan in hero-architecture-spec.md's AMENDMENT at
+//      the top of that file (the original pinned/lane-based plan
+//      further down that doc was tried, looked worse, and got dropped —
+//      the amendment is the real plan now).
 //   2. PROJECTS — a separate pool of particles that assembles into each
 //      project's card outline + signature icon as you scroll through the
 //      projects section. Built earlier, unrelated to the hero flow, not
-//      touched by any of this.
+//      touched by any of this — including its own scroll-pin, which
+//      predates this rebuild and stays exactly as it was.
 //   3. AMBIENT — a small pool that just drifts gently in the background
 //      everywhere on the page, whenever it isn't needed for #2.
 //
-// Every frame also erases the canvas a little instead of clearing it
-// outright, which is what gives every particle its short motion trail —
-// see the top of draw() below. (Known issue with this specific technique,
-// not being fixed yet — see portfolio-project-notes.md.)
+// Each hero particle draws its own short trail from its own remembered
+// recent positions, then the canvas gets a full, proper clear every
+// frame — see the top of draw() below for why (a fading-instead-of-
+// clearing trick used to live there, and turned out to be broken).
 //
 // Safety: if canvas, GSAP, or ScrollTrigger aren't available, or the
 // visitor has "reduce motion" turned on, this script does nothing and
@@ -84,11 +87,18 @@
   function rgba(c, a) {
     return 'rgba(' + Math.round(c.r) + ',' + Math.round(c.g) + ',' + Math.round(c.b) + ',' + a + ')';
   }
+  // Same idea as lerpColor above, but for a plain number instead of a
+  // colour: t=0 gives a, t=1 gives b, anything between blends the two.
+  // Used a lot below to say "this value at the top of the page, that
+  // value at the bottom, blended by how far down you've scrolled."
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
 
   var easeInOut = gsap.parseEase('power2.inOut');
 
   // =====================================================================
-  // HERO — flow field particles (Stage 2 of the new plan)
+  // HERO — flow field particles (Stages 2 + 3)
   //
   // This follows the "one motion rule" from the amendment at the top of
   // hero-architecture-spec.md:
@@ -111,11 +121,11 @@
   // for, rather than particles all marching right in a straight line
   // like items on a conveyor belt.
   //
-  // No scroll involvement at all yet — that's Stage 3, which will bring
-  // in one `intensity` number driven by how far down the page you've
-  // scrolled, and use it to turn the turbulence/speed/density up or down.
-  // For now this just needs to look good sitting still, which is exactly
-  // what Stage 2 is asking for.
+  // On top of that base motion, one further number — `intensity` — now
+  // ties the whole field's character to how far down the page you've
+  // scrolled (0 at the top, 1 at the bottom). See currentIntensity() and
+  // the constants just below it for exactly how that works and why it's
+  // recalculated fresh every frame rather than stored anywhere.
   // =====================================================================
 
   // Budget from the spec's "Performance constraints": ~250 particles on
@@ -136,6 +146,12 @@
   // below; nothing else reads it.
   var heroTime = 0;
 
+  // How many recent positions each particle remembers, for drawing its
+  // trail — see p.trail in resetHeroParticle() and the drawing code in
+  // drawHeroParticles() below. 24 frames of history at roughly 1px of
+  // movement per frame gives a tail around 25px long.
+  var HERO_TRAIL_LENGTH = 24;
+
   // Resets one particle object in place — used both to build the initial
   // set and to "respawn" a particle once it exits off the right edge.
   // Mutating the existing object (instead of creating a new one each
@@ -152,12 +168,40 @@
   // frames. Under the flow field, velocity is worked out completely
   // fresh every single frame from the particle's current position — see
   // drawHeroParticles() below — so there's nothing to store here.
+  //
+  // p.densityThreshold and p.trail ARE stored on the particle, and it's
+  // worth being clear about why that doesn't break the "no memory of
+  // previous frames" rule. densityThreshold is a fixed personal trait —
+  // picked once at spawn and never changed — exactly like p.r or p.phase
+  // already were. It's not history, it's identity. p.trail is a short,
+  // fixed-length rolling window of this particle's own last ~24
+  // positions, purely for drawing its comet tail; it doesn't affect how
+  // the particle behaves, isn't tied to scroll in any way, and can't
+  // build up or get stuck the way the old bugs did.
   function resetHeroParticle(p, spawnAtLeftEdge) {
     p.x = spawnAtLeftEdge ? -HERO_EDGE_MARGIN - Math.random() * 60 : Math.random() * window.innerWidth;
     p.y = Math.random() * window.innerHeight;
     p.r = Math.random() * 1.4 + 0.6;
     p.alpha = Math.random() * 0.35 + 0.35;
     p.phase = Math.random() * Math.PI * 2; // offsets each particle's turbulence so they don't all wobble in sync
+    p.densityThreshold = Math.random(); // the intensity level at which this particle fades out (see drawHeroParticles)
+
+    // Set up the trail on first creation; on every later respawn, just
+    // collapse the existing trail onto the new spawn point instead of
+    // rebuilding it. Without this collapse, a respawning particle's
+    // trail would still hold its old positions from over on the right
+    // of the screen, and joining those to its new position on the left
+    // would draw one long streak straight across the viewport.
+    if (!p.trail) {
+      p.trail = [];
+      for (var t = 0; t < HERO_TRAIL_LENGTH; t++) p.trail.push({ x: p.x, y: p.y });
+    } else {
+      for (var t2 = 0; t2 < p.trail.length; t2++) {
+        p.trail[t2].x = p.x;
+        p.trail[t2].y = p.y;
+      }
+    }
+
     return p;
   }
 
@@ -169,16 +213,66 @@
   }
   createHeroParticles();
 
-  // How strong the swirling "wind" is versus the constant rightward
-  // push. Turbulence deliberately outweighs the bias — that's what lets
-  // paths curve and even briefly reverse, rather than every particle
-  // just sliding rightward in a straight line. One tuning knob each, so
-  // it's easy to nudge the balance later without hunting through the
-  // maths below.
-  var HERO_TURBULENCE_STRENGTH = 0.85; // px/frame, roughly — the wind
-  var HERO_RIGHTWARD_BIAS = 0.35;      // px/frame, constant — the current
+  // =====================================================================
+  // INTENSITY (Stage 3)
+  //
+  // One number, 0 at the very top of the page, 1 at the very bottom.
+  // Everything about how "energetic" the flow looks — how strong the
+  // wind is, how fast particles move, how many are visible, how much
+  // their size varies — is just this one number blended between a "top
+  // of page" value and a "bottom of page" value. Nothing is tuned
+  // per-section; scrolling from the hero into About into Projects just
+  // slides this one dial down continuously the whole way.
+  //
+  // CRITICAL: this is worked out FRESH, every single frame, directly
+  // from window.scrollY. There is no variable anywhere holding "the
+  // current intensity" between frames — it's recalculated from scratch
+  // each time this function runs. That's not a style choice, it's the
+  // spec's hard rule: nothing here is allowed to remember what happened
+  // last frame or which way you were last scrolling. That exact kind of
+  // leftover state is what caused two real bugs earlier in this project
+  // (particles that dimmed near the footer and never brightened back up,
+  // and a hero that formed differently the second time you scrolled
+  // through it) — both were some value quietly carrying over between
+  // frames instead of being read fresh. Reading window.scrollY directly
+  // can't have that problem, because there's nothing to carry over.
+  function currentIntensity() {
+    var scrollable = document.documentElement.scrollHeight - window.innerHeight;
+    if (scrollable <= 0) return 0; // page is shorter than the screen — nowhere to scroll, stay calm
+    return Math.max(0, Math.min(1, window.scrollY / scrollable));
+  }
 
-  function drawHeroParticles() {
+  // ---------------------------------------------------------------
+  // The "top of page" / "bottom of page" ends of every blend below.
+  // Grouped here so the whole behaviour table is readable in one place
+  // instead of scattered through the loop.
+  // ---------------------------------------------------------------
+
+  // Turbulence: how strong the wind is. Energetic up top, calmer down
+  // the bottom — but never fully still, so it always reads as "smoke,"
+  // just quieter smoke.
+  var HERO_TURBULENCE_MAX = 0.85; // top of page
+  var HERO_TURBULENCE_MIN = 0.25; // bottom of page
+
+  // Speed: the constant rightward push. Same top/bottom idea.
+  var HERO_SPEED_MAX = 0.35; // top of page
+  var HERO_SPEED_MIN = 0.12; // bottom of page
+
+  // Size variance: every particle has its own random radius (p.r, set
+  // once at spawn). Near the top, particles are drawn at their own true
+  // size — lots of variety. Near the bottom, every particle's drawn size
+  // blends toward this one shared value instead, so the variety settles
+  // out into something more uniform.
+  var HERO_UNIFORM_RADIUS = 1.0;
+
+  // Density: how wide a band of intensity a particle takes to fade out
+  // (see densityThreshold below). Wider = a gentler, more gradual thinning.
+  var HERO_DENSITY_FADE_BAND = 0.18;
+
+  function drawHeroParticles(intensity) {
+    var turbulenceStrength = lerp(HERO_TURBULENCE_MAX, HERO_TURBULENCE_MIN, intensity);
+    var rightwardBias = lerp(HERO_SPEED_MAX, HERO_SPEED_MIN, intensity);
+
     for (var i = 0; i < heroParticles.length; i++) {
       var p = heroParticles[i];
 
@@ -206,8 +300,8 @@
       // x, y and time creep forward a tiny bit each frame, so the numbers
       // they produce only creep too. Smooth inputs, smooth outputs — no
       // momentum/carry-over needed to make it look fluid.
-      var vx = windX * HERO_TURBULENCE_STRENGTH + HERO_RIGHTWARD_BIAS;
-      var vy = windY * HERO_TURBULENCE_STRENGTH;
+      var vx = windX * turbulenceStrength + rightwardBias;
+      var vy = windY * turbulenceStrength;
 
       p.x += vx;
       p.y += vy;
@@ -225,11 +319,72 @@
         resetHeroParticle(p, true);
       }
 
+      // ---- RECORD THIS FRAME'S POSITION INTO THE TRAIL ----
+      // Slide every remembered position down one slot, then write the
+      // current position into the last slot — trail[0] is the oldest
+      // point remembered, the last entry is where the particle is right
+      // now. Drawn below as a short comet tail. This is the fix for the
+      // trail-residue bug: each particle owns its own short, bounded
+      // history and draws it explicitly, rather than the canvas relying
+      // on an old frame slowly (and, it turned out, never completely)
+      // fading away on its own.
+      var trail = p.trail;
+      for (var t = 0; t < trail.length - 1; t++) {
+        trail[t].x = trail[t + 1].x;
+        trail[t].y = trail[t + 1].y;
+      }
+      trail[trail.length - 1].x = p.x;
+      trail[trail.length - 1].y = p.y;
+
+      // ---- DENSITY: does this particle even get drawn right now? ----
+      // Every particle has its own fixed densityThreshold (0-1, picked
+      // once at spawn — see resetHeroParticle). As intensity climbs past
+      // that threshold, this particle's opacity ramps smoothly down to 0
+      // over a band HERO_DENSITY_FADE_BAND wide, centred on its own
+      // threshold. Because every particle has a different threshold,
+      // they don't all vanish at once — the field thins out gradually,
+      // particle by particle, rather than the whole thing dimming or
+      // popping as one block. This is a pure function of (this
+      // particle's fixed threshold, the current intensity) — nothing
+      // here depends on whether this particle was visible last frame.
+      var densityFade = Math.max(0, Math.min(1,
+        (p.densityThreshold - intensity) / HERO_DENSITY_FADE_BAND + 0.5
+      ));
+      if (densityFade <= 0.01) continue; // fully faded — not worth drawing
+
+      // ---- SIZE VARIANCE: this particle's own size -> one shared size ----
+      var radius = lerp(p.r, HERO_UNIFORM_RADIUS, intensity);
+      var alpha = p.alpha * densityFade;
+
+      // ---- DRAW THE TRAIL ----
+      // Two overlapping strokes: faint and thin along the whole tail,
+      // brighter and thicker over just the most recent third. That's
+      // what creates the tapered "comet" look without needing one draw
+      // call per segment (which, at ~250 particles, would add up).
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.moveTo(trail[0].x, trail[0].y);
+      for (var s = 1; s < trail.length; s++) ctx.lineTo(trail[s].x, trail[s].y);
+      ctx.strokeStyle = rgba(COLORS.amber, alpha * 0.18);
+      ctx.lineWidth = radius * 0.9;
+      ctx.stroke();
+
+      var recentFrom = Math.floor(trail.length * 0.66);
+      ctx.beginPath();
+      ctx.moveTo(trail[recentFrom].x, trail[recentFrom].y);
+      for (var s2 = recentFrom + 1; s2 < trail.length; s2++) ctx.lineTo(trail[s2].x, trail[s2].y);
+      ctx.strokeStyle = rgba(COLORS.amber, alpha * 0.45);
+      ctx.lineWidth = radius * 1.4;
+      ctx.stroke();
+
+      // ---- DRAW THE HEAD ----
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
       // Plain amber for now — no scroll-driven colour shift yet, that's
-      // Stage 3+ territory once the `intensity` parameter exists.
-      ctx.fillStyle = rgba(COLORS.amber, p.alpha);
+      // a later stage once the Flight Recorder palette is wired in.
+      ctx.fillStyle = rgba(COLORS.amber, alpha);
       ctx.fill();
     }
   }
@@ -548,22 +703,25 @@
 
   var rafId = null;
   function draw() {
-    // Motion trails (see hero-architecture-spec.md's "Motion trails"
-    // technique) replace the old per-frame ctx.clearRect(). Instead of
-    // wiping the canvas blank every frame, this erases just a little bit
-    // of what's already there, so every moving particle leaves a short
-    // fading trail behind it. `destination-out` compositing subtracts
-    // alpha from existing pixels — a plain translucent fillRect would NOT
-    // work here, because the canvas itself is transparent (the page's
-    // grid-overlay shows through it), so "painting black at 12% opacity"
-    // would tint everything grey instead of fading it out.
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)'; // lower alpha = longer trails, higher = shorter
-    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
-    ctx.globalCompositeOperation = 'source-over'; // back to normal drawing for everything below
+    // Wipe the canvas completely every frame. We used to erase just a
+    // little bit each frame instead (destination-out at low alpha) to
+    // get a fading-trail look for free — but that technique turned out
+    // to be broken: canvas transparency is stored as a whole number
+    // 0-255, and fading by a percentage mathematically can't reach zero
+    // (it gets stuck at 1 and stays there), so every path a particle
+    // had ever crossed left a permanent faint ghost. Measured it once —
+    // stuck pixels climbed for as long as the tab stayed open, no matter
+    // how hard the fade was tuned.
+    //
+    // Trails are now drawn on purpose, per-particle, from each one's own
+    // remembered recent positions (see drawHeroParticles()), so a full,
+    // proper clear here is not just safe but necessary — it's what
+    // guarantees nothing lingers on the canvas that isn't something a
+    // particle is deliberately drawing right now.
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
     heroTime += 1 / 60; // fixed step, not real elapsed time — see heroTime's declaration above
-    drawHeroParticles();
+    drawHeroParticles(currentIntensity());
 
     projectsClaimFrame = currentProjectIndex >= 0 && projectsRawProgress < 1 && frameEased > 0.001;
     if (currentProjectIndex >= 0) {

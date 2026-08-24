@@ -311,6 +311,22 @@ Checked this properly rather than just eyeballing it — tracked a bunch of part
 
 **What's next:** Stage 3 — tying an `intensity` number to how far down the page you've scrolled, so the whole field visibly calms down or livens up as you scroll, still with no pin anywhere.
 
+### 18. Trail residue actually fixed this time, plus Stage 3 (scroll-tied intensity)
+
+**Residue bug — fixed for real, not deferred.** Changed my mind on leaving it for later, decided to just kill it now instead. The old approach faded the whole canvas a tiny bit each frame instead of clearing it, and that can never fully fade to nothing (screen transparency is a whole number, so it gets stuck at "1" forever) — so every path a particle ever took stuck around as a faint permanent mark. New approach: every particle just remembers its own last 24 spots and draws its own little tail from those, and the screen gets a proper full wipe every frame. Ran it for 32 seconds this time (used to blow past 14,000 stuck pixels in 30 seconds) and it stayed under 35 the whole way through, no climbing. Actually fixed, not just less broken.
+
+**Stage 3 — scrolling now changes the mood of the whole thing.** One number, `intensity`, goes from 0 at the very top of the page to 1 at the very bottom. Four things are tied to it, all blending smoothly from "top of page" to "bottom of page":
+- **How strong the wind is** — energetic swirls up top, gentle drift by the bottom.
+- **How fast things move** — same idea, brisk up top, slow by the bottom.
+- **How many particles you can see** — each one has its own personal "I disappear around here" point picked when it's born, so they thin out gradually and individually rather than the whole screen dimming at once. Measured it: 100/100 visible at the top, 60/100 halfway down, down to about 5/100 at the very bottom.
+- **How much sizes vary** — all different sizes up top, settling toward one consistent size by the bottom.
+
+**The important bit — the number is never stored anywhere.** Every single frame, it's worked out fresh, directly from how far you've scrolled right now. Nothing is remembered between frames. This is the exact rule that got broken twice before in this project (see entry 8 — the footer particles that stayed dim forever, and the hero that formed differently the second time round) — both of those happened because some value was quietly carrying over instead of being recalculated properly. Tested this specifically: scrolled all the way to the bottom, then straight back to the top, and the top now looks exactly like a fresh page load did — no leftover dimness, no "it remembers where you've been" weirdness.
+
+**Left alone on purpose (same as always):** the Projects section's own scroll-lock is a separate, older feature and hasn't been touched by any of this. Colour is still on the old orange/teal values — that's a deliberate later job, not forgotten.
+
+**What's next:** Stage 4 — the "Interactions" stage: a colour/density bump near project sections, and gentle cursor deflection.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 
