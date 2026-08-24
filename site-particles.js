@@ -48,6 +48,7 @@
 
   var ctx = canvas.getContext('2d');
   var navEl = document.querySelector('.nav');
+  var heroSection = document.querySelector('.hero');
   var projectsSection = document.querySelector('#projects');
   var projectStageEl = document.getElementById('projectStage');
   var footerLogEl = document.querySelector('.footer__log');
@@ -92,21 +93,50 @@
   var easeInOut = gsap.parseEase('power2.inOut');
 
   // =====================================================================
-  // HERO — continuous flow particles (Stage B)
+  // HERO — continuous flow particles (Stages B + C)
   //
-  // The whole idea, straight from hero-architecture-spec.md's "Core
-  // architectural principle": particles have LIFECYCLES, not
-  // DESTINATIONS. Every particle just keeps doing the same loop forever:
+  // ---------------------------------------------------------------
+  // THE ONE IDEA THIS WHOLE SECTION IS BUILT ON
+  // ---------------------------------------------------------------
+  // From hero-architecture-spec.md's "Core architectural principle":
+  // particles have LIFECYCLES, not DESTINATIONS. Every particle just
+  // repeats the same loop forever:
   //
-  //     spawn at the left edge -> drift right -> exit the right edge -> respawn at the left
+  //     spawn at left edge -> flow right -> exit right edge -> respawn at left
   //
-  // It never eases toward a fixed (x, y) target the way the old hero
-  // pipeline animation did (that's the "target-point convergence model"
-  // the spec explicitly says to discard — it's what made the old version
-  // feel mechanical and "parked" once it finished). There's no scroll
-  // logic here at all yet — Stage C is what will make this flow feel
-  // more "ordered" as you scroll; for now it just runs continuously as
-  // an ambient effect, which is exactly what Stage B asks for.
+  // It never eases toward a fixed (x, y) target and stop. (The old hero
+  // animation did exactly that, and it's why it felt mechanical and
+  // "parked" once it finished — the spec calls that the "target-point
+  // convergence model" and says to discard it.)
+  //
+  // What changes as you scroll isn't WHETHER particles move — it's how
+  // much ORDER the system imposes on them. Every frame, each particle
+  // works out one single number:
+  //
+  //     order = xFraction * scrollProgress
+  //
+  //     xFraction      = how far across the screen this particle is (0 = left
+  //                      edge, 1 = right edge)
+  //     scrollProgress = how far through the hero you've scrolled (0 to 1)
+  //
+  // Then EVERY visual property is just a blend between a "chaos" value
+  // and an "ordered" value, dialled by that one number. Turbulence,
+  // speed, size, opacity, colour, and the pull toward a lane all read
+  // the same `order`. Nothing else decides anything.
+  //
+  // Read off what that gives you:
+  //   scrollProgress = 0  -> order is 0 for every particle, everywhere.
+  //                          Total chaos across the whole screen.
+  //   scrollProgress = 1  -> order ramps 0 -> 1 from left to right.
+  //                          A particle enters chaotic on the left and
+  //                          progressively resolves as it travels right.
+  //
+  // So scrolling feels like *powering up a pipeline*, which is the whole
+  // point of the hero.
+  //
+  // Stage C (this stage) implements the Bronze -> Silver half of the
+  // spec's behaviour table: chaos resolving into ordered lanes. Stage D
+  // adds the Gold end state (clustering + thinning out on the right).
   // =====================================================================
 
   // Budget from the spec's "Performance constraints": ~250 particles on
@@ -116,35 +146,171 @@
   var heroParticles = [];
 
   // How far off-screen a particle spawns/exits, in pixels — kept as one
-  // constant so the left (spawn) and right (exit) edges always agree;
-  // used by both resetHeroParticle() and drawHeroParticles() below.
+  // constant so the left (spawn) and right (exit) edges always agree.
   var HERO_EDGE_MARGIN = 40;
 
   // A running clock, advanced by a fixed small step every frame (see
-  // draw() below) rather than real elapsed time — simple, and matches
-  // how every other motion in this file already works (nothing here is
-  // frame-rate-corrected). It only exists to feed the turbulence formula
-  // below; nothing else reads it.
+  // draw() below) rather than real elapsed time. It only exists to feed
+  // the turbulence formula; nothing else reads it.
   var heroTime = 0;
 
-  // Resets one particle object in place — used both to build the initial
-  // set and to "respawn" a particle once it exits off the right edge.
-  // Mutating the existing object (instead of creating a new one each
-  // time) avoids constantly allocating fresh objects while the loop runs.
+  // ---------------------------------------------------------------
+  // The two ends of every blend
   //
-  // spawnAtLeftEdge: true when a particle is respawning after exiting —
-  // it appears just off the left edge of the screen so the re-entry isn't
-  // an abrupt pop-in. false is only used for the very first fill, so the
-  // hero doesn't look empty for a moment while everything walks in from
-  // the left on page load.
+  // Each pair below is "what this property looks like in CHAOS" and
+  // "what it looks like when ORDERED". Every particle sits somewhere
+  // between the two, positioned by its own `order` value. Grouping them
+  // here means the behaviour table from the spec is readable in one
+  // place instead of being scattered through the loop.
+  // ---------------------------------------------------------------
+
+  // Turbulence — spec: "high" at Bronze, damping toward Silver.
+  var HERO_TURBULENCE = 0.03;
+
+  // Damping is how much vertical velocity survives each frame. Below 1
+  // so movement always settles rather than accelerating forever.
+  // Higher = looser and more wandery; lower = snappier and calmer.
+  // The spec's spring snippet suggests ~0.88 for the settled end.
+  var HERO_DAMPING_CHAOS = 0.94;
+  var HERO_DAMPING_ORDER = 0.88;
+
+  // Speed — spec: "highly varied" at Bronze, "uniform" at Silver. Each
+  // particle keeps its own random baseVx and blends toward this shared
+  // conveyor-belt speed as order rises.
+  var HERO_UNIFORM_VX = 1.15;
+
+  // Size and opacity — spec: "varied" at Bronze, "consistent" at Silver.
+  var HERO_UNIFORM_RADIUS = 1.15;
+  var HERO_UNIFORM_ALPHA = 0.5;
+
+  // ---------------------------------------------------------------
+  // Motion trails
+  //
+  // How many recent positions each particle remembers. The trail is
+  // drawn by joining these up, so this number IS the trail length —
+  // raise it for longer comet tails, lower it for shorter ones.
+  //
+  // WHY IT WORKS THIS WAY (this is a deliberate change from the
+  // technique in hero-architecture-spec.md, so it's worth explaining):
+  //
+  // The spec suggests getting trails by never fully clearing the canvas
+  // — instead erasing ~12% of it each frame, so old frames fade out and
+  // leave a smear. That's a well-known trick, but it has a flaw that
+  // shows up badly here. Canvas stores transparency as a whole number
+  // from 0-255, and erasing 12% MULTIPLIES it (x0.88). Once a pixel
+  // reaches 1/255, 1 x 0.88 = 0.88, which rounds back up to 1. It gets
+  // stuck there and never reaches 0.
+  //
+  // The result: every pixel a particle has ever crossed keeps a faint
+  // permanent ghost, and after a minute or two the hero is covered in a
+  // cobweb of every path ever traced. Measured it: the count of stuck
+  // pixels grew steadily with no sign of levelling off, and — the
+  // giveaway — erasing harder (25%, 40%) changed nothing at all, because
+  // the problem is the rounding, not the strength.
+  //
+  // So instead: fully clear the canvas every frame (no history can
+  // survive, so residue is impossible by construction) and draw each
+  // trail explicitly from the positions the particle remembers.
+  //
+  // Two bonuses fall out of this. It's cheaper — repainting the whole
+  // viewport every frame was the single most expensive operation, and a
+  // clear is cheaper than a fill. And trail length becomes per-particle
+  // rather than one global setting, which Stage E needs anyway (the spec
+  // asks for one "protagonist" particle with a noticeably longer trail —
+  // impossible when a single canvas-wide fade governs every trail at
+  // once).
+  //
+  // 24 frames of history at roughly 1px of movement per frame gives a
+  // tail around 25px long.
+  var HERO_TRAIL_LENGTH = 24;
+
+  // ---------------------------------------------------------------
+  // Lanes — the spec's "Y position: random -> snapping to lanes"
+  //
+  // A set of evenly spaced horizontal tracks down the viewport. As order
+  // rises, each particle is pulled toward its own assigned lane, which
+  // is what turns a chaotic cloud into readable parallel streams.
+  // ---------------------------------------------------------------
+  var HERO_LANE_COUNT = isLowPower ? 5 : 9;
+
+  // Returns the y pixel position of a given lane. Computed fresh from
+  // window.innerHeight on every call rather than cached, so lanes follow
+  // the window when it's resized with no extra bookkeeping.
+  //
+  // The 8% inset top and bottom keeps the outermost lanes clear of the
+  // very edges of the screen, where they'd be half cut off.
+  function heroLaneY(laneIndex) {
+    var inset = 0.08;
+    var span = 1 - inset * 2;
+    var t = HERO_LANE_COUNT > 1 ? laneIndex / (HERO_LANE_COUNT - 1) : 0.5;
+    return (inset + t * span) * window.innerHeight;
+  }
+
+  // Resets one particle in place — used both for the initial fill and to
+  // "respawn" a particle once it exits past the right edge. Reusing the
+  // same object instead of creating a new one avoids allocating garbage
+  // on every respawn while the loop is running.
+  //
+  // spawnAtLeftEdge: true when respawning — the particle reappears just
+  // off the left edge so re-entry isn't an abrupt pop-in. false is only
+  // used for the very first fill, so the hero isn't empty on page load
+  // while everything walks in from the left.
   function resetHeroParticle(p, spawnAtLeftEdge) {
     p.x = spawnAtLeftEdge ? -HERO_EDGE_MARGIN - Math.random() * 60 : Math.random() * window.innerWidth;
     p.y = Math.random() * window.innerHeight;
-    p.vx = 0.4 + Math.random() * 0.8; // base rightward speed — varied per particle, so the flow doesn't move in lockstep
-    p.vy = 0;                          // vertical velocity builds up from turbulence, below
-    p.r = Math.random() * 1.4 + 0.6;
-    p.alpha = Math.random() * 0.35 + 0.35;
-    p.phase = Math.random() * Math.PI * 2; // offsets each particle's turbulence so they don't all wobble in sync
+    p.vy = 0; // vertical velocity — built up by turbulence and the lane spring below
+
+    // "base" values are this particle's personal CHAOS values. They stay
+    // fixed for its whole lifetime; the blending toward the shared
+    // ordered values happens per-frame in drawHeroParticles().
+    p.baseVx = 0.4 + Math.random() * 0.8;
+    p.baseRadius = Math.random() * 1.4 + 0.6;
+    p.baseAlpha = Math.random() * 0.35 + 0.35;
+
+    // Offsets this particle's turbulence so the whole field doesn't
+    // wobble in unison.
+    p.phase = Math.random() * Math.PI * 2;
+
+    // The lane this particle will head for, picked ONCE at spawn and kept
+    // for its entire trip across the screen.
+    //
+    // Worth understanding why it's fixed rather than "whichever lane is
+    // nearest right now": a particle wobbling near the boundary between
+    // two lanes would keep flipping which one it considers nearest, and
+    // get yanked back and forth. That reads as jitter. Choosing once and
+    // committing gives clean, stable streams. The particle gets a fresh
+    // random lane next time it respawns, so the assignment still varies.
+    p.lane = Math.floor(Math.random() * HERO_LANE_COUNT);
+
+    // How strongly this particle is pulled toward its lane. Randomised
+    // per particle so they don't all arrive at the same instant — the
+    // spec calls this "staggered arrival for free". Kept small: paired
+    // with the damping values above it produces a spring that overshoots
+    // its lane very slightly before settling, rather than snapping to it
+    // rigidly or bouncing like a spring toy.
+    p.stiffness = 0.002 + Math.random() * 0.004;
+
+    // The remembered recent positions that get drawn as this particle's
+    // trail, oldest first, newest last.
+    //
+    // Created once and then only ever overwritten in place — never
+    // rebuilt — so the animation loop doesn't generate throwaway objects
+    // 60 times a second for the browser to clean up.
+    if (!p.trail) {
+      p.trail = [];
+      for (var t = 0; t < HERO_TRAIL_LENGTH; t++) p.trail.push({ x: p.x, y: p.y });
+    } else {
+      // On respawn, collapse the whole trail onto the new spawn point.
+      // This matters: without it the trail would still hold the
+      // particle's old positions over on the right of the screen, and
+      // joining those to its new position on the left would draw one
+      // long streak straight across the viewport on every respawn.
+      for (var t2 = 0; t2 < p.trail.length; t2++) {
+        p.trail[t2].x = p.x;
+        p.trail[t2].y = p.y;
+      }
+    }
+
     return p;
   }
 
@@ -157,43 +323,144 @@
   createHeroParticles();
 
   function drawHeroParticles() {
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+
     for (var i = 0; i < heroParticles.length; i++) {
       var p = heroParticles[i];
 
-      // The flow: continuous rightward motion. This one line is the
-      // entire "spawn left -> flow right" idea from the spec.
-      p.x += p.vx;
+      // ---- THE ORDER VALUE ----
+      // Everything below is a consequence of this one line. `xFraction`
+      // is clamped because particles briefly live just off-screen on
+      // either side (see HERO_EDGE_MARGIN), and we don't want order
+      // going negative or above 1 there.
+      var xFraction = Math.max(0, Math.min(1, p.x / w));
+      var order = xFraction * heroProgress;
 
-      // Turbulence: the spec's sum-of-sines flow field, which gives a
-      // smooth, organic wobble instead of a perfectly flat horizontal
-      // line. `p.phase` staggers it per-particle. In Stage C this
-      // strength will be driven by (1 - order) so it damps out toward
-      // the "ordered" side of the screen — for now it's just a constant,
-      // since Stage B has no order/scroll concept yet.
+      // ---- HORIZONTAL: speed, varied -> uniform ----
+      // Blend this particle's own random speed toward the shared speed.
+      // Note this blends a *setting*, not a position — the particle is
+      // still just moving right at some speed, never easing toward a
+      // destination.
+      var vx = p.baseVx + (HERO_UNIFORM_VX - p.baseVx) * order;
+      p.x += vx;
+
+      // ---- VERTICAL: turbulence AND lane-pull, blended together ----
+      // Both of these write to the same vertical velocity. Turbulence
+      // fades out as order rises; the lane spring fades in. They aren't
+      // an either/or switch — around mid-screen both are partly active,
+      // and that overlap is what makes chaos resolve into structure
+      // smoothly instead of visibly changing mode.
+
+      // Turbulence: the spec's sum-of-sines flow field. Multiplying two
+      // waves that vary with x, y and time gives a smooth, organic,
+      // non-repeating drift — far more natural-looking than random
+      // jitter, and it costs almost nothing to compute.
       var drift = Math.sin(p.x * 0.01 + heroTime + p.phase) * Math.cos(p.y * 0.013 - heroTime * 0.7);
-      p.vy += drift * 0.03;
-      p.vy *= 0.94; // damping, so vy settles instead of drifting further and further every frame
+      p.vy += drift * HERO_TURBULENCE * (1 - order);
+
+      // Lane spring. This is the spec's "spring motion with overshoot":
+      //     vy += (target - y) * stiffness   <- accelerate toward the lane
+      //     vy *= damping                    <- bleed off speed
+      //     y  += vy                         <- move
+      //
+      // The important detail is that the pull changes VELOCITY, not
+      // position. That's what lets a particle build up momentum, sail
+      // very slightly past its lane, and drift back — which is what
+      // reads as alive. The rejected alternative (`y += (target - y) *
+      // 0.1`) can only ever approach the target and slow down, and that
+      // asymptotic crawl is what made the old version feel mechanical.
+      p.vy += (heroLaneY(p.lane) - p.y) * p.stiffness * order;
+
+      // Damping also blends: loose and wandering in chaos, tighter and
+      // settling as order rises.
+      var damping = HERO_DAMPING_CHAOS + (HERO_DAMPING_ORDER - HERO_DAMPING_CHAOS) * order;
+      p.vy *= damping;
       p.y += p.vy;
 
-      // Wrap vertically. The hero is a self-contained scene (not a tall
-      // page section), so a particle that drifts off the top/bottom just
-      // reappears on the opposite edge rather than being lost.
-      if (p.y < 0) p.y = window.innerHeight;
-      if (p.y > window.innerHeight) p.y = 0;
+      // Soft bounce off the top and bottom of the viewport.
+      //
+      // Stage B wrapped particles around (off the top -> back on at the
+      // bottom). That can't work now: a wrapped particle would be a full
+      // screen-height away from its lane, and the spring would haul it
+      // straight back across, drawing a long vertical streak. Bouncing
+      // keeps it in view and continuous. Halving the velocity stops it
+      // pinballing.
+      if (p.y < 0) {
+        p.y = 0;
+        p.vy = Math.abs(p.vy) * 0.5;
+      } else if (p.y > h) {
+        p.y = h;
+        p.vy = -Math.abs(p.vy) * 0.5;
+      }
 
-      // Lifecycle, not destination: once a particle has drifted past the
-      // right edge, it respawns at the left and starts the same loop
-      // again — it never "arrives" anywhere and stops.
-      if (p.x > window.innerWidth + HERO_EDGE_MARGIN) {
+      // ---- LIFECYCLE ----
+      // Past the right edge? Respawn at the left and start over. This is
+      // the "never arrives anywhere" rule in practice.
+      if (p.x > w + HERO_EDGE_MARGIN) {
         resetHeroParticle(p, true);
       }
 
+      // ---- APPEARANCE: size, opacity, colour ----
+      // Same blend pattern as speed: this particle's own varied value,
+      // blended toward the shared consistent one by order.
+      var radius = p.baseRadius + (HERO_UNIFORM_RADIUS - p.baseRadius) * order;
+      var alpha = p.baseAlpha + (HERO_UNIFORM_ALPHA - p.baseAlpha) * order;
+
+      // Colour: Bronze (--amber, raw) -> Silver (--text-muted,
+      // transforming), per the spec's behaviour table. Stage D extends
+      // this into Gold (--teal) for the final insight state.
+      var color = lerpColor(COLORS.amber, COLORS.muted, order);
+
+      // ---- RECORD THIS FRAME'S POSITION INTO THE TRAIL ----
+      // Slide every remembered position down one slot, then write the
+      // current position into the last slot. So trail[0] is the oldest
+      // point and the last entry is where the particle is right now.
+      var trail = p.trail;
+      for (var t = 0; t < trail.length - 1; t++) {
+        trail[t].x = trail[t + 1].x;
+        trail[t].y = trail[t + 1].y;
+      }
+      trail[trail.length - 1].x = p.x;
+      trail[trail.length - 1].y = p.y;
+
+      // ---- DRAW THE TRAIL ----
+      // Drawn as two overlapping strokes rather than one line per pair of
+      // points. Faint and thin along the whole tail, brighter and thicker
+      // over just the most recent third, then the solid head on top.
+      // Three tiers of brightness is enough to read as a tapered comet.
+      //
+      // Why not fade every segment individually for a perfectly smooth
+      // taper: that would be one stroke call per segment, so 23 per
+      // particle, about 5,750 per frame at 250 particles. Stroke calls
+      // are not cheap. This version is 3 draw calls per particle and
+      // looks near-identical in motion.
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // Whole tail, faint.
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      // Bronze/raw-data colour for the whole flow, per the spec's colour
-      // table — Stage C introduces the amber -> teal gradient as order
-      // rises; Stage B has no order concept yet, so everything is Bronze.
-      ctx.fillStyle = rgba(COLORS.amber, p.alpha);
+      ctx.moveTo(trail[0].x, trail[0].y);
+      for (var s = 1; s < trail.length; s++) ctx.lineTo(trail[s].x, trail[s].y);
+      ctx.strokeStyle = rgba(color, alpha * 0.18);
+      ctx.lineWidth = radius * 0.9;
+      ctx.stroke();
+
+      // Most recent third, brighter — this is what creates the taper.
+      var recentFrom = Math.floor(trail.length * 0.66);
+      ctx.beginPath();
+      ctx.moveTo(trail[recentFrom].x, trail[recentFrom].y);
+      for (var s2 = recentFrom + 1; s2 < trail.length; s2++) ctx.lineTo(trail[s2].x, trail[s2].y);
+      ctx.strokeStyle = rgba(color, alpha * 0.45);
+      ctx.lineWidth = radius * 1.4;
+      ctx.stroke();
+
+      // ---- DRAW THE HEAD ----
+      // Full opacity, so the particle itself always reads as brighter
+      // than the tail behind it.
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = rgba(color, alpha);
       ctx.fill();
     }
   }
@@ -290,7 +557,17 @@
   createParticles();
 
   function resizeCanvas() {
-    var dpr = window.devicePixelRatio || 1;
+    // devicePixelRatio is how many real screen pixels there are per CSS
+    // pixel — 1 on a normal display, 2 or 3 on high-density/retina ones.
+    // Matching it keeps the canvas sharp instead of blurry.
+    //
+    // But it's CAPPED here, per the spec's performance constraints. The
+    // trail effect repaints the entire viewport every single frame, and
+    // that cost scales with the square of this number: uncapped on a
+    // 3x display it means painting 9x as many pixels per frame as on a
+    // 1x one, for a sharpness difference nobody can see. 2 (or 1.5 on
+    // weaker devices) is the sweet spot.
+    var dpr = Math.min(window.devicePixelRatio || 1, isLowPower ? 1.5 : 2);
     canvas.width = window.innerWidth * dpr;
     canvas.height = window.innerHeight * dpr;
     canvas.style.width = window.innerWidth + 'px';
@@ -299,15 +576,59 @@
   }
   resizeCanvas();
 
-  // Stage B has no hero ScrollTrigger yet, deliberately — see the spec's
-  // "Two independent systems" section: the animation loop always runs on
-  // its own via requestAnimationFrame (see drawHeroParticles() above and
-  // draw() below), and scroll only ever changes *how* particles behave,
-  // never *whether* they move. Stage C is what introduces a single
-  // `scrollProgress` variable (via a ScrollTrigger pin on the hero,
-  // mirroring the pattern below for the projects section) and uses it to
-  // make the flow feel more "ordered" from left to right.
   var navHeight = navEl ? navEl.offsetHeight : 0;
+
+  // =====================================================================
+  // HERO SCROLL TRIGGER (Stage C)
+  //
+  // This is the ENTIRE connection between scrolling and the hero
+  // animation. It sets one number. That's deliberate, and it's the
+  // spec's "Two independent systems" rule:
+  //
+  //   the animation loop   -> driven by requestAnimationFrame, ALWAYS runs
+  //   scroll position      -> sets one variable, nothing more
+  //
+  // The loop never asks "have we scrolled?" or "is the hero visible?"
+  // before deciding to move particles. It just moves them, every frame,
+  // forever. Scroll only changes HOW they behave, never WHETHER they
+  // move. That separation is what stops the animation freezing/"parking"
+  // when you stop scrolling — the failure mode that sank earlier
+  // versions of this hero.
+  //
+  // A consequence worth knowing: scroll past the hero and heroProgress
+  // simply stays at 1. The flow keeps running in its ordered state
+  // rather than stopping. Stage G ("The Cascade") is what gives it a
+  // proper exit.
+  // =====================================================================
+
+  // How many pixels of scrolling the hero stays pinned for. This is the
+  // single number that controls how long the Bronze -> Silver
+  // transformation takes to play out — raise it for a slower, more
+  // drawn-out reveal, lower it for a snappier one. Kept deliberately
+  // short-ish: a long pin also means a long scroll back UP past it.
+  var HERO_PIN_DISTANCE = 1600;
+
+  // The raw value ScrollTrigger writes, and the smoothed value the
+  // particles actually read. See the smoothing step in draw() for why
+  // there are two.
+  var heroProgressTarget = 0;
+  var heroProgress = 0;
+
+  if (heroSection) {
+    ScrollTrigger.create({
+      trigger: heroSection,
+      start: 'top ' + navHeight, // pin once the hero's top reaches just under the nav
+      end: '+=' + HERO_PIN_DISTANCE,
+      pin: true,        // hold the hero on screen while its scroll range plays out
+      pinSpacing: true, // reserve that scroll distance so later sections aren't overlapped
+      scrub: 1,         // tie progress to scroll position rather than playing on a timer
+      onUpdate: function (self) {
+        // self.progress is 0 at the start of the pinned range and 1 at
+        // the end. This assignment is the whole job.
+        heroProgressTarget = self.progress;
+      }
+    });
+  }
 
   // =====================================================================
   // PROJECTS SCROLL TRIGGER
@@ -512,21 +833,32 @@
 
   var rafId = null;
   function draw() {
-    // Motion trails (see hero-architecture-spec.md's "Motion trails"
-    // technique) replace the old per-frame ctx.clearRect(). Instead of
-    // wiping the canvas blank every frame, this erases just a little bit
-    // of what's already there, so every moving particle leaves a short
-    // fading trail behind it. `destination-out` compositing subtracts
-    // alpha from existing pixels — a plain translucent fillRect would NOT
-    // work here, because the canvas itself is transparent (the page's
-    // grid-overlay shows through it), so "painting black at 12% opacity"
-    // would tint everything grey instead of fading it out.
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)'; // lower alpha = longer trails, higher = shorter
-    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
-    ctx.globalCompositeOperation = 'source-over'; // back to normal drawing for everything below
+    // Wipe the canvas completely. Nothing from the previous frame
+    // survives, which is exactly what we want: it makes the leftover-
+    // ghost-pixel problem described up at HERO_TRAIL_LENGTH structurally
+    // impossible. Trails are drawn deliberately by drawHeroParticles()
+    // from each particle's own remembered positions, not left behind as
+    // canvas residue.
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
     heroTime += 1 / 60; // fixed step, not real elapsed time — see heroTime's declaration above
+
+    // Smooth the scroll progress before the particles read it.
+    //
+    // Scroll events arrive in coarse jumps (especially with a mouse
+    // wheel or a trackpad flick), so using the raw value directly makes
+    // the whole field lurch between states. Easing toward it here spreads
+    // each jump over several frames.
+    //
+    // Worth being clear about what this is and isn't: it smooths a
+    // SETTING — one number describing how ordered the system should be.
+    // It is NOT easing a particle toward a position, which is the thing
+    // the spec warns against. Particles still move by their own velocity
+    // every frame; this only softens how quickly the dial they read gets
+    // turned. Raise 0.08 for a more immediate response, lower it for a
+    // more languid one.
+    heroProgress += (heroProgressTarget - heroProgress) * 0.08;
+
     drawHeroParticles();
 
     projectsClaimFrame = currentProjectIndex >= 0 && projectsRawProgress < 1 && frameEased > 0.001;

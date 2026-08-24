@@ -1,22 +1,47 @@
-/* STAGE3-CHECK (style.css): if you can see this comment when you open this
-   file in Notepad, this is the correct updated file. Stage 3 = content
-   cleanup + About stats strip + three-color project cards. */
-
 /* ============================================
-   TOKENS
+   TOKENS — "Warm Archive" palette
+   (see hero-architecture-spec.md, "Colour" section)
+
+   These are CSS custom properties, a.k.a. CSS variables. Defining them
+   once on :root (the <html> element) means every rule below can say
+   `var(--teal)` instead of repeating a hex code, and changing the site's
+   whole colour scheme is a matter of editing this one block.
+
+   site-particles.js also READS these same values at runtime rather than
+   hardcoding its own copies, so the canvas animation and the page always
+   agree on what "amber" means. That's why swapping the values here
+   recolours the particles too, with no JavaScript changes needed.
+
+   The palette is deliberately warm — it should read like an aged cockpit
+   instrument panel rather than a computer monitor. The three "story"
+   colours map onto the hero animation's Bronze -> Silver -> Gold
+   progression:
+     --amber      raw / unprocessed data   (terracotta)
+     --text-muted mid-transformation       (warm grey)
+     --teal       finished insight         (verdigris — literally what
+                                            bronze turns as it ages)
    ============================================ */
 :root {
-  --ink: #0B0F19;
-  --panel: #121826;
-  --panel-border: #232B3D;
-  --line: #1C2434;
-  --text: #E7ECF5;
-  --text-muted: #8C97AD;
-  --teal: #4FD1C5;
-  --teal-dim: rgba(79, 209, 197, 0.14);
-  --amber: #F5A623;
-  --purple: #A78BFA;
-  --purple-dim: rgba(167, 139, 250, 0.14);
+  /* -- surfaces, darkest to lightest -- */
+  --ink: #14100D;          /* page background */
+  --panel: #1E1712;        /* cards and raised surfaces */
+  --panel-border: #33261D; /* borders/dividers — derived, sits just above --panel */
+  --line: #241B14;         /* background grid overlay — derived, only just above --ink */
+
+  /* -- text -- */
+  --text: #F1E9DD;         /* primary text */
+  --text-muted: #A89A87;   /* secondary text, and "Silver / transforming" in the hero */
+
+  /* -- accents --
+     The `-dim` variants are the same colour at ~14% alpha, used for soft
+     background washes. They're written as rgba() rather than hex because
+     they need transparency so whatever is behind them shows through. */
+  --teal: #4F9C8C;                        /* "Gold / insight" — verdigris */
+  --teal-dim: rgba(79, 156, 140, 0.14);
+  --amber: #D97D4A;                       /* "Bronze / raw" — terracotta */
+  --amber-dim: rgba(217, 125, 74, 0.14);
+  --purple: #8E5A6B;                      /* data-analysis project category — dusty plum */
+  --purple-dim: rgba(142, 90, 107, 0.14);
 
   --font-display: "Space Grotesk", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
@@ -106,7 +131,11 @@ img, svg { display: block; max-width: 100%; }
   align-items: center;
   gap: 2rem;
   padding: 1.1rem clamp(1.25rem, 5vw, 4rem);
-  background: rgba(11, 15, 25, 0.82);
+  /* Semi-transparent version of --ink (#14100D = rgb 20,16,13), so page
+     content blurs behind the nav instead of hard-cutting at its edge.
+     Written out as rgba rather than var(--ink) because CSS variables
+     can't have an alpha applied to them without extra machinery. */
+  background: rgba(20, 16, 13, 0.82);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--panel-border);
 }
@@ -294,10 +323,14 @@ img, svg { display: block; max-width: 100%; }
 
 .btn--primary {
   background: var(--teal);
-  color: #06201C;
+  /* Very dark verdigris. Hardcoded rather than a token because it exists
+     for exactly one reason: to be readable *on top of* --teal. It isn't a
+     palette colour in its own right, so it doesn't earn a --token. */
+  color: #10201C;
   font-weight: 500;
 }
-.btn--primary:hover { background: #6be0d5; }
+/* A lightened --teal for hover — same hue, raised brightness. */
+.btn--primary:hover { background: #63B3A2; }
 
 .btn--ghost {
   border-color: var(--panel-border);
