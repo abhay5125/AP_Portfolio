@@ -217,40 +217,19 @@
   }
 
   var navHeight = navEl ? navEl.offsetHeight : 0;
-
-  // STAGE-A NOTE (see hero-architecture-spec.md): this pin exists to hold
-  // the hero on screen while particles converge onto `.hero__diagram`'s
-  // six node positions and the old subtitle/desc/actions text fades in.
-  // Stage A's rebuilt hero (index.html) deleted `.hero__diagram` and
-  // those text elements entirely — a full-viewport composition doesn't
-  // have them any more — so `heroDiagramEl` is now always null.
-  //
-  // Left un-guarded, this ScrollTrigger would still pin the hero for
-  // 1600px of scrolling with *nothing* on screen animating (drawHeroFrame
-  // below already bails out early when heroDiagramEl is null), which
-  // would feel like the page had frozen. Guarding the whole pin on
-  // heroDiagramEl existing is the smallest possible fix for that: it
-  // skips creating the pin, so the page scrolls straight past the hero
-  // instead of pausing on it. Nothing else in this file changes — the
-  // ambient particles, the projects pin below, and every drawing/colour
-  // helper are untouched. This whole block (and the old convergence
-  // animation it guards) is expected to be replaced properly once the
-  // new scroll-driven particle system from later build stages lands.
-  if (heroDiagramEl) {
-    ScrollTrigger.create({
-      trigger: heroSection,
-      start: 'top ' + navHeight,
-      end: '+=1600', // shortened from 2500 — long pins meant a long scroll back up too
-      pin: true,
-      pinSpacing: true,
-      scrub: 1,
-      onUpdate: function (self) {
-        heroProgress = self.progress;
-        heroEased = easeInOut(heroProgress);
-        updateHeroTextReveals();
-      }
-    });
-  }
+  ScrollTrigger.create({
+    trigger: heroSection,
+    start: 'top ' + navHeight,
+    end: '+=1600', // shortened from 2500 — long pins meant a long scroll back up too
+    pin: true,
+    pinSpacing: true,
+    scrub: 1,
+    onUpdate: function (self) {
+      heroProgress = self.progress;
+      heroEased = easeInOut(heroProgress);
+      updateHeroTextReveals();
+    }
+  });
 
   // =====================================================================
   // PROJECTS SCROLL TRIGGER
