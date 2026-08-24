@@ -50,6 +50,7 @@
   var projectsSection = document.querySelector('#projects');
   var projectStageEl = document.getElementById('projectStage');
   var footerLogEl = document.querySelector('.footer__log');
+  var heroTextEl = document.querySelector('.hero__content');
 
   var stageIdEl = document.getElementById('stageId');
   var stageCategoryEl = document.getElementById('stageCategory');
@@ -178,6 +179,22 @@
   // positions, purely for drawing its comet tail; it doesn't affect how
   // the particle behaves, isn't tied to scroll in any way, and can't
   // build up or get stuck the way the old bugs did.
+  // Collapses a particle's whole trail onto its CURRENT x/y — used any
+  // time a particle's position jumps discontinuously (edge wrap, or a
+  // full respawn), so the trail never draws a line between the old spot
+  // and the new one.
+  function collapseHeroTrail(p) {
+    if (!p.trail) {
+      p.trail = [];
+      for (var t = 0; t < HERO_TRAIL_LENGTH; t++) p.trail.push({ x: p.x, y: p.y });
+      return;
+    }
+    for (var t2 = 0; t2 < p.trail.length; t2++) {
+      p.trail[t2].x = p.x;
+      p.trail[t2].y = p.y;
+    }
+  }
+
   function resetHeroParticle(p, spawnAtLeftEdge) {
     p.x = spawnAtLeftEdge ? -HERO_EDGE_MARGIN - Math.random() * 60 : Math.random() * window.innerWidth;
     p.y = Math.random() * window.innerHeight;
@@ -186,22 +203,7 @@
     p.phase = Math.random() * Math.PI * 2; // offsets each particle's turbulence so they don't all wobble in sync
     p.densityThreshold = Math.random(); // the intensity level at which this particle fades out (see drawHeroParticles)
 
-    // Set up the trail on first creation; on every later respawn, just
-    // collapse the existing trail onto the new spawn point instead of
-    // rebuilding it. Without this collapse, a respawning particle's
-    // trail would still hold its old positions from over on the right
-    // of the screen, and joining those to its new position on the left
-    // would draw one long streak straight across the viewport.
-    if (!p.trail) {
-      p.trail = [];
-      for (var t = 0; t < HERO_TRAIL_LENGTH; t++) p.trail.push({ x: p.x, y: p.y });
-    } else {
-      for (var t2 = 0; t2 < p.trail.length; t2++) {
-        p.trail[t2].x = p.x;
-        p.trail[t2].y = p.y;
-      }
-    }
-
+    collapseHeroTrail(p); // see above — avoids a streak from the old position to the new one
     return p;
   }
 
@@ -269,12 +271,49 @@
   // (see densityThreshold below). Wider = a gentler, more gradual thinning.
   var HERO_DENSITY_FADE_BAND = 0.18;
 
+  // Stage 4 tuning knobs — kept together so they're easy to find/adjust.
+  var HERO_PROJECT_EFFECT_RADIUS = 160; // extra reach beyond the project card's own edge
+  var HERO_PROJECT_TURBULENCE_BOOST = 0.6; // up to +60% wind right at the card
+  var HERO_CURSOR_RADIUS = 90;
+  var HERO_CURSOR_STRENGTH = 0.6; // secondary to ambient flow (top-of-page turbulence maxes at 0.85)
+  var HERO_TEXT_REPEL_RADIUS = 260;
+  var HERO_TEXT_REPEL_STRENGTH = 14; // divided by distance below — spec says "strength proportional to 1/distance"
+
   function drawHeroParticles(intensity) {
     var turbulenceStrength = lerp(HERO_TURBULENCE_MAX, HERO_TURBULENCE_MIN, intensity);
     var rightwardBias = lerp(HERO_SPEED_MAX, HERO_SPEED_MIN, intensity);
 
+    // ---- PROJECT-PROXIMITY EFFECT SETUP ----
+    // The ONLY section-specific behaviour in the whole system, per the
+    // spec. Worked out once per frame (not per particle — this is one
+    // cheap DOM read per frame, the same pattern drawProjectFrame()
+    // already uses for this exact element), then every particle below
+    // just checks its own distance to this one point.
+    var projectColor = null, projectCx = 0, projectCy = 0, projectRadius = 0;
+    if (currentProjectIndex >= 0 && projectStageEl) {
+      var stageRect = projectStageEl.getBoundingClientRect();
+      if (stageRect.width > 0) {
+        projectCx = stageRect.left + stageRect.width / 2;
+        projectCy = stageRect.top + stageRect.height / 2;
+        projectRadius = Math.max(stageRect.width, stageRect.height) / 2 + HERO_PROJECT_EFFECT_RADIUS;
+        projectColor = categoryColor(PROJECTS[currentProjectIndex].category);
+      }
+    }
+
     for (var i = 0; i < heroParticles.length; i++) {
       var p = heroParticles[i];
+
+      // How close this particle is to the project card right now, 0
+      // (far away, or no card showing) to 1 (right on top of it). Purely
+      // a function of this particle's current position and the card's
+      // current position — nothing stored, nothing scroll-direction
+      // dependent.
+      var projectBoost = 0;
+      if (projectColor) {
+        var pdx = p.x - projectCx, pdy = p.y - projectCy;
+        var pdist = Math.sqrt(pdx * pdx + pdy * pdy);
+        projectBoost = Math.max(0, 1 - pdist / projectRadius);
+      }
 
       // ---- THE WIND: turbulence(x, y, time), as two numbers ----
       // This is the exact same sum-of-sines shape used in the old
@@ -292,6 +331,11 @@
       var windX = Math.sin(p.y * 0.013 + heroTime * 0.8 + p.phase) * Math.cos(p.x * 0.010 - heroTime * 0.5 + p.phase);
       var windY = Math.sin(p.x * 0.010 + heroTime + p.phase) * Math.cos(p.y * 0.013 - heroTime * 0.7 + p.phase);
 
+      // Local turbulence bump near the project card — the "brief
+      // density/turbulence bump" the spec asks for. Everywhere else on
+      // the page projectBoost is 0, so this is a no-op there.
+      var localTurbulence = turbulenceStrength * (1 + projectBoost * HERO_PROJECT_TURBULENCE_BOOST);
+
       // ---- VELOCITY = WIND + CURRENT ----
       // Worked out completely fresh, every frame, from this particle's
       // position right now — nothing here is added to or carried over
@@ -300,8 +344,40 @@
       // x, y and time creep forward a tiny bit each frame, so the numbers
       // they produce only creep too. Smooth inputs, smooth outputs — no
       // momentum/carry-over needed to make it look fluid.
-      var vx = windX * turbulenceStrength + rightwardBias;
-      var vy = windY * turbulenceStrength;
+      var vx = windX * localTurbulence + rightwardBias;
+      var vy = windY * localTurbulence;
+
+      // ---- CURSOR REPULSION ----
+      // Small, local, always secondary to the flow above — this only
+      // ever nudges the velocity the wind already produced, never
+      // replaces it. Pushes AWAY from the cursor (particle position
+      // minus cursor position), never toward it.
+      if (mouseX !== null) {
+        var cdx = p.x - mouseX, cdy = p.y - mouseY;
+        var cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+        if (cdist < HERO_CURSOR_RADIUS && cdist > 0.01) {
+          var cursorPush = (1 - cdist / HERO_CURSOR_RADIUS) * HERO_CURSOR_STRENGTH;
+          vx += (cdx / cdist) * cursorPush;
+          vy += (cdy / cdist) * cursorPush;
+        }
+      }
+
+      // ---- TYPOGRAPHY REPULSION ----
+      // Reads the box cached once at load/resize (see cacheHeroTextBox
+      // above draw()) — no layout read here, just arithmetic. Pushes
+      // away from the text block's centre, strength inversely
+      // proportional to distance, exactly as the spec's technique
+      // describes, so particles curve around the name instead of
+      // passing straight through it.
+      if (heroTextBox) {
+        var tdx = p.x - heroTextBox.cx, tdy = p.y - heroTextBox.cy;
+        var tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+        if (tdist < HERO_TEXT_REPEL_RADIUS && tdist > 0.01) {
+          var textPush = HERO_TEXT_REPEL_STRENGTH / Math.max(tdist, 20);
+          vx += (tdx / tdist) * textPush;
+          vy += (tdy / tdist) * textPush;
+        }
+      }
 
       p.x += vx;
       p.y += vy;
@@ -309,8 +385,15 @@
       // Wrap vertically. The hero is a self-contained scene (not a tall
       // page section), so a particle that drifts off the top/bottom just
       // reappears on the opposite edge rather than being lost.
-      if (p.y < 0) p.y = window.innerHeight;
-      if (p.y > window.innerHeight) p.y = 0;
+      //
+      // The trail gets collapsed to the new position on a wrap, same as
+      // a respawn does. Without this, the trail array would still hold
+      // positions from the old edge (e.g. near y=900) right next to the
+      // new one (y=0), and drawing a line through both would streak a
+      // random vertical line across the whole screen — that streak is
+      // exactly the bug reported and fixed here.
+      if (p.y < 0) { p.y = window.innerHeight; collapseHeroTrail(p); }
+      if (p.y > window.innerHeight) { p.y = 0; collapseHeroTrail(p); }
 
       // Once a particle has drifted past the right edge, respawn it at
       // the left and let it start the same wandering loop again — it
@@ -350,11 +433,17 @@
       var densityFade = Math.max(0, Math.min(1,
         (p.densityThreshold - intensity) / HERO_DENSITY_FADE_BAND + 0.5
       ));
+      // Project proximity also brings faded particles back — part of
+      // the same "density bump" as the turbulence boost above.
+      densityFade = Math.max(densityFade, projectBoost);
       if (densityFade <= 0.01) continue; // fully faded — not worth drawing
 
       // ---- SIZE VARIANCE: this particle's own size -> one shared size ----
       var radius = lerp(p.r, HERO_UNIFORM_RADIUS, intensity);
       var alpha = p.alpha * densityFade;
+      // Tint toward the project's category colour near the card, same
+      // colours already used for that project's own card/tags elsewhere.
+      var color = projectColor ? lerpColor(COLORS.amber, projectColor, projectBoost) : COLORS.amber;
 
       // ---- DRAW THE TRAIL ----
       // Two overlapping strokes: faint and thin along the whole tail,
@@ -367,7 +456,7 @@
       ctx.beginPath();
       ctx.moveTo(trail[0].x, trail[0].y);
       for (var s = 1; s < trail.length; s++) ctx.lineTo(trail[s].x, trail[s].y);
-      ctx.strokeStyle = rgba(COLORS.amber, alpha * 0.18);
+      ctx.strokeStyle = rgba(color, alpha * 0.18);
       ctx.lineWidth = radius * 0.9;
       ctx.stroke();
 
@@ -375,16 +464,14 @@
       ctx.beginPath();
       ctx.moveTo(trail[recentFrom].x, trail[recentFrom].y);
       for (var s2 = recentFrom + 1; s2 < trail.length; s2++) ctx.lineTo(trail[s2].x, trail[s2].y);
-      ctx.strokeStyle = rgba(COLORS.amber, alpha * 0.45);
+      ctx.strokeStyle = rgba(color, alpha * 0.45);
       ctx.lineWidth = radius * 1.4;
       ctx.stroke();
 
       // ---- DRAW THE HEAD ----
       ctx.beginPath();
       ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-      // Plain amber for now — no scroll-driven colour shift yet, that's
-      // a later stage once the Flight Recorder palette is wired in.
-      ctx.fillStyle = rgba(COLORS.amber, alpha);
+      ctx.fillStyle = rgba(color, alpha);
       ctx.fill();
     }
   }
@@ -489,6 +576,36 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   resizeCanvas();
+
+  // ---- typography repulsion (Stage 4) ----
+  // Cached ONCE here and again only on resize — never read inside the
+  // animation loop, per the spec ("never call getBoundingClientRect()
+  // inside the animation loop — it forces layout recalculation every
+  // frame"). heroTextBox is just four numbers the per-particle loop
+  // reads; nothing about it is recomputed per frame or per particle.
+  var heroTextBox = null;
+  function cacheHeroTextBox() {
+    if (!heroTextEl) return;
+    var r = heroTextEl.getBoundingClientRect();
+    var pad = 36; // a little breathing room beyond the literal text box
+    heroTextBox = {
+      left: r.left - pad, right: r.right + pad,
+      top: r.top - pad, bottom: r.bottom + pad,
+      cx: (r.left + r.right) / 2, cy: (r.top + r.bottom) / 2
+    };
+  }
+  cacheHeroTextBox();
+
+  // ---- cursor repulsion (Stage 4) ----
+  // Just the current mouse position, updated by the browser whenever the
+  // mouse moves. Nothing to compute here — the actual repulsion math
+  // lives in drawHeroParticles(), reading these two numbers fresh each
+  // frame.
+  var mouseX = null, mouseY = null;
+  window.addEventListener('mousemove', function (e) {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
 
   // Stage B has no hero ScrollTrigger yet, deliberately — see the spec's
   // "Two independent systems" section: the animation loop always runs on
@@ -748,6 +865,7 @@
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function () {
       resizeCanvas();
+      cacheHeroTextBox();
       ScrollTrigger.refresh();
     }, 150);
   });

@@ -327,6 +327,17 @@ Checked this properly rather than just eyeballing it — tracked a bunch of part
 
 **What's next:** Stage 4 — the "Interactions" stage: a colour/density bump near project sections, and gentle cursor deflection.
 
+### 19. Fixed a streak bug, then built Stage 4 (project glow, cursor, typography)
+
+**Streak bug:** the random vertical lines were a side-effect of the trail fix from entry 18 — when a particle wrapped top-to-bottom, its trail didn't reset, so it drew one long line across the whole screen connecting old and new positions. Not intentional. Fixed by collapsing the trail on wrap too, same as it already did on left/right respawn.
+
+**Stage 4, three pieces:**
+- Particles near the currently-shown project card get a turbulence/density bump and tint toward that project's own colour (same colours already used for its tags). Only section-specific behaviour in the system, as required.
+- Cursor gently pushes nearby particles away, small radius, always secondary to the ambient flow.
+- Hero text's bounding box is cached once (load + resize only, never per-frame) and particles get pushed away from its centre, strength falling off with distance, so they curve around the name.
+
+Checked for 20s with the mouse moving around (worst case for the streak bug) — stayed flat, no errors.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 
