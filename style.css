@@ -23,25 +23,33 @@
    ============================================ */
 :root {
   /* -- surfaces, darkest to lightest -- */
-  --ink: #14100D;          /* page background */
-  --panel: #1E1712;        /* cards and raised surfaces */
-  --panel-border: #33261D; /* borders/dividers — derived, sits just above --panel */
-  --line: #241B14;         /* background grid overlay — derived, only just above --ink */
+  --ink: #0D0E10;          /* page background */
+  --panel: #16171A;        /* cards and raised surfaces */
+  --panel-border: #2A2B2D; /* borders/dividers — derived, sits just above --panel */
+  --line: #1B1C1E;         /* background grid overlay — derived, only just above --ink */
 
   /* -- text -- */
-  --text: #F1E9DD;         /* primary text */
-  --text-muted: #A89A87;   /* secondary text, and "Silver / transforming" in the hero */
+  --text: #ECE9E2;         /* primary text */
+  --text-muted: #A5A8AD;   /* secondary text, and "Silver / transforming" in the hero */
 
-  /* -- accents --
-     The `-dim` variants are the same colour at ~14% alpha, used for soft
-     background washes. They're written as rgba() rather than hex because
-     they need transparency so whatever is behind them shows through. */
-  --teal: #4F9C8C;                        /* "Gold / insight" — verdigris */
-  --teal-dim: rgba(79, 156, 140, 0.14);
-  --amber: #D97D4A;                       /* "Bronze / raw" — terracotta */
-  --amber-dim: rgba(217, 125, 74, 0.14);
-  --purple: #8E5A6B;                      /* data-analysis project category — dusty plum */
-  --purple-dim: rgba(142, 90, 107, 0.14);
+/* -- accents --
+   Colour has meaning rather than simply being decorative.
+   Amber = raw/start
+   Orange = transformation/process
+   Olive = insight/growth
+   Slate = structure/support */
+
+  --amber: #F2B705;        /* "Bronze / raw" — signal amber */
+  --amber-dim: rgba(242, 183, 5, 0.14);
+
+  --orange: #E46A2E;       /* "Silver / transforming" — process orange */
+  --orange-dim: rgba(228, 106, 46, 0.14);
+
+  --olive: #7A8456;        /* "Gold / insight" — muted olive */
+  --olive-dim: rgba(122, 132, 86, 0.14);
+
+  --slate: #596574;        /* structure / supporting elements */
+  --slate-dim: rgba(89, 101, 116, 0.14);
 
   --font-display: "Space Grotesk", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
