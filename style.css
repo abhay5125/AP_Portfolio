@@ -1,48 +1,43 @@
 /* ============================================
-   TOKENS — "Warm Archive" palette
-   (see hero-architecture-spec.md, "Colour" section)
+   TOKENS — "Flight Recorder" palette (finalised)
+   (see hero-architecture-spec.md's amendment, "Colour: finalised")
 
-   These are CSS custom properties, a.k.a. CSS variables. Defining them
-   once on :root (the <html> element) means every rule below can say
-   `var(--teal)` instead of repeating a hex code, and changing the site's
-   whole colour scheme is a matter of editing this one block.
+   These are CSS custom properties. Defining them once on :root means
+   every rule below can say `var(--accent)` instead of repeating a hex
+   code, and site-particles.js reads these same values at runtime, so
+   the canvas animation and the page always agree on what "accent" means.
 
-   site-particles.js also READS these same values at runtime rather than
-   hardcoding its own copies, so the canvas animation and the page always
-   agree on what "amber" means. That's why swapping the values here
-   recolours the particles too, with no JavaScript changes needed.
-
-   The palette is deliberately warm — it should read like an aged cockpit
-   instrument panel rather than a computer monitor. The three "story"
-   colours map onto the hero animation's Bronze -> Silver -> Gold
-   progression:
-     --amber      raw / unprocessed data   (terracotta)
-     --text-muted mid-transformation       (warm grey)
-     --teal       finished insight         (verdigris — literally what
-                                            bronze turns as it ages)
+   The idea: mostly restrained warm-neutral surfaces (ink -> panel ->
+   panel-alt) and a steel-to-bone neutral range for secondary emphasis,
+   with exactly ONE saturated colour (--accent) reserved for the single
+   most important highlight on the page. --steel and --bone doing real
+   tonal work (not just one flat grey) is what keeps that restraint from
+   reading as monotone — see site-particles.js for how the particle
+   field also blends across that same steel<->bone range.
    ============================================ */
 :root {
-/* -- surfaces -- */
---ink: #07080D;
---panel: #0D1018;
---panel-border: #202534;
---line: #11151E;
+  /* -- surfaces, darkest to lightest -- */
+  --ink: #121212;
+  --panel: #1B1B1A;
+  --panel-alt: #201D19;
+  --border: #2E2E2C;
+  --line: #191917; /* background grid overlay — subtle, just above --ink */
 
-/* -- text -- */
---text: #F2F3F0;
---text-muted: #858B98;
+  /* -- neutral range, dark to light (NOT one flat grey) -- */
+  --steel: #55524B;
+  --bone: #C7C0B2;
 
-/* -- accents -- */
---violet: #8B5CF6;
---cyan: #22D3EE;
---magenta: #E879F9;
---lime: #A3E635;
+  /* -- text -- */
+  --text: #EDEBE6;
+  --text-muted: #8A867E;
 
-/* -- dim -- */
---violet-dim: rgba(139, 92, 246, 0.13);
---cyan-dim: rgba(34, 211, 238, 0.13);
---magenta-dim: rgba(232, 121, 249, 0.13);
---lime-dim: rgba(163, 230, 53, 0.10);
+  /* -- the one accent -- */
+  --accent: #F04E1B;
+  --accent-dim: rgba(240, 78, 27, 0.12);
+
+  /* -- project-category accents (job cards only — muted, secondary to --accent) -- */
+  --amber: #C9A227;
+  --purple: #8B6F8A;
 
   --font-display: "Space Grotesk", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
@@ -80,7 +75,7 @@ ul { list-style: none; }
 img, svg { display: block; max-width: 100%; }
 
 :focus-visible {
-  outline: 2px solid var(--teal);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
@@ -116,7 +111,7 @@ img, svg { display: block; max-width: 100%; }
 .eyebrow {
   font-family: var(--font-mono);
   font-size: 0.8rem;
-  color: var(--teal);
+  color: var(--accent);
   letter-spacing: 0.02em;
   margin-bottom: 0.9rem;
 }
@@ -132,13 +127,13 @@ img, svg { display: block; max-width: 100%; }
   align-items: center;
   gap: 2rem;
   padding: 1.1rem clamp(1.25rem, 5vw, 4rem);
-  /* Semi-transparent version of --ink (#14100D = rgb 20,16,13), so page
+  /* Semi-transparent version of --ink (#121212 = rgb 18,18,18), so page
      content blurs behind the nav instead of hard-cutting at its edge.
      Written out as rgba rather than var(--ink) because CSS variables
      can't have an alpha applied to them without extra machinery. */
-  background: rgba(20, 16, 13, 0.82);
+  background: rgba(18, 18, 18, 0.82);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--border);
 }
 
 .nav__brand {
@@ -147,7 +142,7 @@ img, svg { display: block; max-width: 100%; }
   font-size: 1.1rem;
   letter-spacing: 0.02em;
 }
-.nav__brand-dot { color: var(--teal); }
+.nav__brand-dot { color: var(--accent); }
 
 .nav__links {
   display: flex;
@@ -162,13 +157,13 @@ img, svg { display: block; max-width: 100%; }
 .nav__cta {
   font-family: var(--font-mono);
   font-size: 0.85rem;
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--border);
   padding: 0.5rem 0.9rem;
   border-radius: 6px;
   transition: border-color 0.15s ease, color 0.15s ease;
   white-space: nowrap;
 }
-.nav__cta:hover { border-color: var(--teal); color: var(--teal); }
+.nav__cta:hover { border-color: var(--accent); color: var(--accent); }
 
 .nav__toggle {
   display: none;
@@ -198,11 +193,11 @@ img, svg { display: block; max-width: 100%; }
     flex-direction: column;
     gap: 0;
     background: var(--panel);
-    border-bottom: 1px solid var(--panel-border);
+    border-bottom: 1px solid var(--border);
   }
   .nav.nav--open .nav__links a {
     padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--panel-border);
+    border-bottom: 1px solid var(--border);
   }
 }
 
@@ -291,7 +286,7 @@ img, svg { display: block; max-width: 100%; }
   letter-spacing: 0.14em; /* wide tracking is what makes small mono text
                               read as a "label" rather than a sentence */
   text-transform: uppercase;
-  color: var(--teal);
+  color: var(--accent);
 }
 
 /* Text element 3/3 — the one-line summary. Muted so it doesn't compete
@@ -323,21 +318,22 @@ img, svg { display: block; max-width: 100%; }
 .btn:hover { transform: translateY(-1px); }
 
 .btn--primary {
-  background: var(--teal);
-  /* Very dark verdigris. Hardcoded rather than a token because it exists
-     for exactly one reason: to be readable *on top of* --teal. It isn't a
-     palette colour in its own right, so it doesn't earn a --token. */
-  color: #10201C;
+  background: var(--accent);
+  /* Near-black. Hardcoded rather than a token because it exists for
+     exactly one reason: to be readable *on top of* --accent's orange.
+     It isn't a palette colour in its own right, so it doesn't earn a
+     --token. */
+  color: #1A0E08;
   font-weight: 500;
 }
-/* A lightened --teal for hover — same hue, raised brightness. */
-.btn--primary:hover { background: #63B3A2; }
+/* A lightened --accent for hover — same hue, raised brightness. */
+.btn--primary:hover { background: #F5754D; }
 
 .btn--ghost {
-  border-color: var(--panel-border);
+  border-color: var(--border);
   color: var(--text);
 }
-.btn--ghost:hover { border-color: var(--teal); color: var(--teal); }
+.btn--ghost:hover { border-color: var(--accent); color: var(--accent); }
 
 /* Projects: .jobs is the static fallback grid, .project-stage is the
    single card that gets repopulated as particles cycle through each
@@ -356,7 +352,7 @@ body.has-particle-system .projects-progress { display: flex; }
   max-width: var(--max-width);
   margin: 0 auto;
   padding: 5rem clamp(1.25rem, 5vw, 2rem);
-  border-top: 1px solid var(--panel-border);
+  border-top: 1px solid var(--border);
 }
 
 .section__title {
@@ -402,7 +398,7 @@ body.has-particle-system .projects-progress { display: flex; }
 .about__stats {
   display: flex;
   flex-wrap: wrap;
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   align-content: start;
@@ -412,7 +408,7 @@ body.has-particle-system .projects-progress { display: flex; }
 .stat {
   flex: 1 1 120px;
   padding: 1.1rem 1.2rem;
-  border-right: 1px solid var(--panel-border);
+  border-right: 1px solid var(--border);
 }
 .stat:last-child {
   border-right: none;
@@ -427,13 +423,13 @@ body.has-particle-system .projects-progress { display: flex; }
   font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--teal);
+  color: var(--accent);
 }
 
 @media (max-width: 780px) {
   .about { grid-template-columns: 1fr; }
   .about__stats { flex-direction: column; }
-  .stat { border-right: none; border-bottom: 1px solid var(--panel-border); }
+  .stat { border-right: none; border-bottom: 1px solid var(--border); }
   .stat:last-child { border-bottom: none; }
 }
 
@@ -450,7 +446,7 @@ body.has-particle-system .projects-progress { display: flex; }
   background: var(--panel);
   border-radius: 12px 12px 12px 2px;
   padding: 1.6rem;
-  border-left: 3px solid var(--panel-border);
+  border-left: 3px solid var(--border);
   transition: transform 0.2s ease, border-left-color 0.2s ease;
 }
 .job:hover {
@@ -462,7 +458,7 @@ body.has-particle-system .projects-progress { display: flex; }
    analysis/quant. This is the primary visual signal for what kind of
    work a project is. */
 .job--aerospace { border-left-color: var(--amber); }
-.job--engineering { border-left-color: var(--teal); }
+.job--engineering { border-left-color: var(--accent); }
 .job--analysis { border-left-color: var(--purple); }
 
 .job__head {
@@ -495,7 +491,7 @@ body.has-particle-system .projects-progress { display: flex; }
   border: 1px solid currentColor;
 }
 .job--aerospace .job__category { color: var(--amber); }
-.job--engineering .job__category { color: var(--teal); }
+.job--engineering .job__category { color: var(--accent); }
 .job--analysis .job__category { color: var(--purple); }
 
 .job__title {
@@ -521,7 +517,7 @@ body.has-particle-system .projects-progress { display: flex; }
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--border);
   padding: 0.25rem 0.55rem;
   border-radius: 5px;
 }
@@ -532,7 +528,7 @@ body.has-particle-system .projects-progress { display: flex; }
   font-family: var(--font-mono);
   font-size: 0.82rem;
 }
-.job__links a { color: var(--teal); }
+.job__links a { color: var(--accent); }
 .job__links a:hover { text-decoration: underline; }
 
 @media (max-width: 780px) {
@@ -553,8 +549,8 @@ body.has-particle-system .projects-progress { display: flex; }
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 .progress-dot.is-active {
-  background: var(--teal);
-  border-color: var(--teal);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 /* ---- project particle-stage card ----
@@ -570,7 +566,7 @@ body.has-particle-system .projects-progress { display: flex; }
   background: var(--panel-alt, var(--panel));
   border-radius: 12px 12px 12px 2px;
   padding: 2rem;
-  border-left: 3px solid var(--panel-border);
+  border-left: 3px solid var(--border);
   transition: border-left-color 0.4s ease;
 }
 
@@ -589,7 +585,7 @@ body.has-particle-system #projects .projects-progress {
   margin-bottom: 1rem;
 }
 .project-stage[data-category="aerospace"] { border-left-color: var(--amber); }
-.project-stage[data-category="engineering"] { border-left-color: var(--teal); }
+.project-stage[data-category="engineering"] { border-left-color: var(--accent); }
 .project-stage[data-category="analysis"] { border-left-color: var(--purple); }
 
 .project-stage__head {
@@ -613,7 +609,7 @@ body.has-particle-system #projects .projects-progress {
   border: 1px solid currentColor;
 }
 .project-stage[data-category="aerospace"] .project-stage__category { color: var(--amber); }
-.project-stage[data-category="engineering"] .project-stage__category { color: var(--teal); }
+.project-stage[data-category="engineering"] .project-stage__category { color: var(--accent); }
 .project-stage[data-category="analysis"] .project-stage__category { color: var(--purple); }
 
 .project-stage__title {
@@ -646,7 +642,7 @@ body.has-particle-system #projects .projects-progress {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--border);
   padding: 0.25rem 0.55rem;
   border-radius: 5px;
 }
@@ -658,7 +654,7 @@ body.has-particle-system #projects .projects-progress {
   opacity: 0;
   transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
 }
-.project-stage__links a { color: var(--teal); }
+.project-stage__links a { color: var(--accent); }
 .project-stage__links a:hover { text-decoration: underline; }
 
 .project-stage.is-content-visible .project-stage__title,
@@ -695,7 +691,7 @@ body.has-particle-system #projects .projects-progress {
   font-size: 0.88rem;
   padding: 0.4rem 0.75rem;
   background: var(--panel);
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 
@@ -741,5 +737,5 @@ body.has-particle-system #projects .projects-progress {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   margin-top: 0.4rem;
-  color: var(--panel-border);
+  color: var(--border);
 }

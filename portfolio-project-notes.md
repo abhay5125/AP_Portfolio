@@ -338,6 +338,14 @@ Checked this properly rather than just eyeballing it — tracked a bunch of part
 
 Checked for 20s with the mouse moving around (worst case for the streak bug) — stayed flat, no errors.
 
+### 20. Stage 5 - Flight Recorder colours applied
+
+Swapped `:root` over to the finalised palette (ink/panel/panel-alt/border, steel-to-bone neutrals, one orange accent). Renamed `--teal`→`--accent` and `--panel-border`→`--border` sitewide to match.
+
+Particles: dropped the old per-category amber/teal/purple system - each particle now picks its own personal spot between steel and bone at spawn (so the field has real tonal range, not one flat grey - checked by sampling actual rendered pixels, got 444 distinct colours out of ~500 sampled, not a handful repeated). ~5% of particles are rare "spark" particles that render in the accent orange instead. Accent otherwise only shows up in the Stage 4 project-proximity glow, matching the brief.
+
+Kept `--amber`/`--purple` defined (retuned to muted tones) since the job cards' category colour-coding still uses them - out of scope to redesign that here.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 
