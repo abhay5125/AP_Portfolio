@@ -1,23 +1,36 @@
-// STAGE4-CHECK (site-particles.js), bugfix pass: if you can see this
-// comment when you open this file in Notepad, this is the correct
-// updated file. Fixed: hero/ambient particle pool conflict, permanent
-// footer-settle dimming, projects segment-boundary flicker.
+// Sitewide particle system.
 //
-// Sitewide particle system — stage 4.
+// One fixed <canvas> (#siteParticles, see .site-particles in style.css),
+// drawn in viewport coordinates the whole time — it never scrolls with
+// the page. Three independent things share it:
 //
-// Replaces hero-animation.js entirely. One fixed canvas, one shared pool
-// of particle objects, drawn in viewport coordinates the whole time (the
-// canvas never scrolls with the page — see .site-particles in style.css).
-// A "frame pool" of particles does the choreographed work (hero pipeline,
-// then later the project cards); everything else in that pool drifts as
-// ambient background whenever it isn't currently claimed. A smaller
-// "ambient-only" pool is always drifting, so the page never feels like
-// the particles switch off between the big moments.
+//   1. HERO FLOW (Stage B — see hero-architecture-spec.md). A dedicated
+//      pool of particles that continuously spawn at the left edge, drift
+//      right, and respawn at the left once they exit the right edge.
+//      They never ease toward a fixed target — see "Core architectural
+//      principle" in the spec for why that matters. No scroll dependency
+//      yet: that's Stage C, which will use scroll position to make the
+//      flow feel more "ordered" from left to right.
+//   2. PROJECTS — a separate pool of particles that assembles into each
+//      project's card outline + signature icon as you scroll through the
+//      projects section, built in an earlier stage and unrelated to the
+//      hero rebuild.
+//   3. AMBIENT — a small pool that just drifts gently in the background
+//      everywhere on the page, whenever it isn't needed for #2.
+//
+// These used to share one combined pool with the *old* hero animation
+// (see git history / hero-architecture-spec.md's "Discard" list) — that
+// coupling was the root cause of a class of bugs, so Stage B gives hero
+// its own independent pool instead of reusing the projects/ambient one.
+//
+// Every frame also erases the canvas a little instead of clearing it
+// outright, which is what gives every particle its short motion trail —
+// see the top of draw() below.
 //
 // Safety: if canvas, GSAP, or ScrollTrigger aren't available, or the
 // visitor has "reduce motion" turned on, this script does nothing and
-// the static fallbacks (hero__diagram-fallback SVG, .jobs cards) stay
-// visible exactly as they are without JavaScript.
+// the static fallbacks (.jobs cards) stay visible exactly as they are
+// without JavaScript.
 
 (function () {
   var canvas = document.getElementById('siteParticles');
@@ -35,15 +48,9 @@
 
   var ctx = canvas.getContext('2d');
   var navEl = document.querySelector('.nav');
-  var heroSection = document.querySelector('.hero');
-  var heroDiagramEl = document.querySelector('.hero__diagram');
   var projectsSection = document.querySelector('#projects');
   var projectStageEl = document.getElementById('projectStage');
   var footerLogEl = document.querySelector('.footer__log');
-
-  var subtitleEl = document.querySelector('.hero__subtitle');
-  var descEl = document.querySelector('.hero__desc');
-  var actionsEl = document.querySelector('.hero__actions');
 
   var stageIdEl = document.getElementById('stageId');
   var stageCategoryEl = document.getElementById('stageCategory');
@@ -85,24 +92,110 @@
   var easeInOut = gsap.parseEase('power2.inOut');
 
   // =====================================================================
-  // HERO — pipeline node layout, matching the fallback SVG's 640x420 viewBox
+  // HERO — continuous flow particles (Stage B)
+  //
+  // The whole idea, straight from hero-architecture-spec.md's "Core
+  // architectural principle": particles have LIFECYCLES, not
+  // DESTINATIONS. Every particle just keeps doing the same loop forever:
+  //
+  //     spawn at the left edge -> drift right -> exit the right edge -> respawn at the left
+  //
+  // It never eases toward a fixed (x, y) target the way the old hero
+  // pipeline animation did (that's the "target-point convergence model"
+  // the spec explicitly says to discard — it's what made the old version
+  // feel mechanical and "parked" once it finished). There's no scroll
+  // logic here at all yet — Stage C is what will make this flow feel
+  // more "ordered" as you scroll; for now it just runs continuously as
+  // an ambient effect, which is exactly what Stage B asks for.
   // =====================================================================
-  var HERO_NODES = [
-    { key: 'api', vx: 70, vy: 80, count: 20 },
-    { key: 'postgres', vx: 70, vy: 190, count: 20 },
-    { key: 's3', vx: 70, vy: 300, count: 20 },
-    { key: 'etl', vx: 320, vy: 190, count: 40 },
-    { key: 'warehouse', vx: 565, vy: 110, count: 30 },
-    { key: 'dashboard', vx: 565, vy: 300, count: 30 }
-  ];
-  var HERO_LABELS = { api: 'API', postgres: 'Postgres', s3: 'S3 logs', etl: 'ETL', warehouse: 'Warehouse', dashboard: 'Dashboard' };
-  var HERO_EDGES = [['api', 'etl'], ['postgres', 'etl'], ['s3', 'etl'], ['etl', 'warehouse'], ['etl', 'dashboard']];
-  // scale the reference counts above to whatever FRAME_COUNT actually is
-  var heroCountScale = FRAME_COUNT / 160;
-  HERO_NODES.forEach(function (n) { n.count = Math.max(4, Math.round(n.count * heroCountScale)); });
 
-  function heroNodeCenter(node, rect) {
-    return { x: rect.left + (node.vx / 640) * rect.width, y: rect.top + (node.vy / 420) * rect.height };
+  // Budget from the spec's "Performance constraints": ~250 particles on
+  // desktop, ~100 on lower-power devices/small screens (isLowPower is
+  // computed above, next to FRAME_COUNT/AMBIENT_COUNT).
+  var HERO_PARTICLE_COUNT = isLowPower ? 100 : 250;
+  var heroParticles = [];
+
+  // How far off-screen a particle spawns/exits, in pixels — kept as one
+  // constant so the left (spawn) and right (exit) edges always agree;
+  // used by both resetHeroParticle() and drawHeroParticles() below.
+  var HERO_EDGE_MARGIN = 40;
+
+  // A running clock, advanced by a fixed small step every frame (see
+  // draw() below) rather than real elapsed time — simple, and matches
+  // how every other motion in this file already works (nothing here is
+  // frame-rate-corrected). It only exists to feed the turbulence formula
+  // below; nothing else reads it.
+  var heroTime = 0;
+
+  // Resets one particle object in place — used both to build the initial
+  // set and to "respawn" a particle once it exits off the right edge.
+  // Mutating the existing object (instead of creating a new one each
+  // time) avoids constantly allocating fresh objects while the loop runs.
+  //
+  // spawnAtLeftEdge: true when a particle is respawning after exiting —
+  // it appears just off the left edge of the screen so the re-entry isn't
+  // an abrupt pop-in. false is only used for the very first fill, so the
+  // hero doesn't look empty for a moment while everything walks in from
+  // the left on page load.
+  function resetHeroParticle(p, spawnAtLeftEdge) {
+    p.x = spawnAtLeftEdge ? -HERO_EDGE_MARGIN - Math.random() * 60 : Math.random() * window.innerWidth;
+    p.y = Math.random() * window.innerHeight;
+    p.vx = 0.4 + Math.random() * 0.8; // base rightward speed — varied per particle, so the flow doesn't move in lockstep
+    p.vy = 0;                          // vertical velocity builds up from turbulence, below
+    p.r = Math.random() * 1.4 + 0.6;
+    p.alpha = Math.random() * 0.35 + 0.35;
+    p.phase = Math.random() * Math.PI * 2; // offsets each particle's turbulence so they don't all wobble in sync
+    return p;
+  }
+
+  function createHeroParticles() {
+    heroParticles = [];
+    for (var i = 0; i < HERO_PARTICLE_COUNT; i++) {
+      heroParticles.push(resetHeroParticle({}, false));
+    }
+  }
+  createHeroParticles();
+
+  function drawHeroParticles() {
+    for (var i = 0; i < heroParticles.length; i++) {
+      var p = heroParticles[i];
+
+      // The flow: continuous rightward motion. This one line is the
+      // entire "spawn left -> flow right" idea from the spec.
+      p.x += p.vx;
+
+      // Turbulence: the spec's sum-of-sines flow field, which gives a
+      // smooth, organic wobble instead of a perfectly flat horizontal
+      // line. `p.phase` staggers it per-particle. In Stage C this
+      // strength will be driven by (1 - order) so it damps out toward
+      // the "ordered" side of the screen — for now it's just a constant,
+      // since Stage B has no order/scroll concept yet.
+      var drift = Math.sin(p.x * 0.01 + heroTime + p.phase) * Math.cos(p.y * 0.013 - heroTime * 0.7);
+      p.vy += drift * 0.03;
+      p.vy *= 0.94; // damping, so vy settles instead of drifting further and further every frame
+      p.y += p.vy;
+
+      // Wrap vertically. The hero is a self-contained scene (not a tall
+      // page section), so a particle that drifts off the top/bottom just
+      // reappears on the opposite edge rather than being lost.
+      if (p.y < 0) p.y = window.innerHeight;
+      if (p.y > window.innerHeight) p.y = 0;
+
+      // Lifecycle, not destination: once a particle has drifted past the
+      // right edge, it respawns at the left and starts the same loop
+      // again — it never "arrives" anywhere and stops.
+      if (p.x > window.innerWidth + HERO_EDGE_MARGIN) {
+        resetHeroParticle(p, true);
+      }
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      // Bronze/raw-data colour for the whole flow, per the spec's colour
+      // table — Stage C introduces the amber -> teal gradient as order
+      // rises; Stage B has no order concept yet, so everything is Bronze.
+      ctx.fillStyle = rgba(COLORS.amber, p.alpha);
+      ctx.fill();
+    }
   }
 
   // =====================================================================
@@ -206,30 +299,15 @@
   }
   resizeCanvas();
 
-  // =====================================================================
-  // HERO SCROLL TRIGGER (same mechanism as stage 2)
-  // =====================================================================
-  var heroProgress = 0, heroEased = 0;
-  function updateHeroTextReveals() {
-    if (subtitleEl) subtitleEl.classList.toggle('is-revealed', heroProgress > 0.05);
-    if (descEl) descEl.classList.toggle('is-revealed', heroProgress > 0.3);
-    if (actionsEl) actionsEl.classList.toggle('is-revealed', heroProgress > 0.85);
-  }
-
+  // Stage B has no hero ScrollTrigger yet, deliberately — see the spec's
+  // "Two independent systems" section: the animation loop always runs on
+  // its own via requestAnimationFrame (see drawHeroParticles() above and
+  // draw() below), and scroll only ever changes *how* particles behave,
+  // never *whether* they move. Stage C is what introduces a single
+  // `scrollProgress` variable (via a ScrollTrigger pin on the hero,
+  // mirroring the pattern below for the projects section) and uses it to
+  // make the flow feel more "ordered" from left to right.
   var navHeight = navEl ? navEl.offsetHeight : 0;
-  ScrollTrigger.create({
-    trigger: heroSection,
-    start: 'top ' + navHeight,
-    end: '+=1600', // shortened from 2500 — long pins meant a long scroll back up too
-    pin: true,
-    pinSpacing: true,
-    scrub: 1,
-    onUpdate: function (self) {
-      heroProgress = self.progress;
-      heroEased = easeInOut(heroProgress);
-      updateHeroTextReveals();
-    }
-  });
 
   // =====================================================================
   // PROJECTS SCROLL TRIGGER
@@ -327,51 +405,6 @@
   // =====================================================================
   // DRAW LOOP
   // =====================================================================
-  function drawHeroFrame() {
-    if (!heroDiagramEl) return;
-    var rect = heroDiagramEl.getBoundingClientRect();
-    var mixed = lerpColor(COLORS.amber, COLORS.teal, heroEased);
-    var linkAlpha = Math.max(0, Math.min(1, (heroEased - 0.5) / 0.4));
-
-    if (linkAlpha > 0) {
-      var centers = {};
-      HERO_NODES.forEach(function (n) { centers[n.key] = heroNodeCenter(n, rect); });
-      ctx.lineWidth = 1 + heroEased;
-      ctx.setLineDash(heroEased < 0.999 ? [4, 4] : [8, 6]);
-      HERO_EDGES.forEach(function (edge) {
-        var a = centers[edge[0]], b = centers[edge[1]];
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = rgba(mixed, linkAlpha);
-        ctx.stroke();
-      });
-      ctx.setLineDash([]);
-    }
-
-    var idx = 0;
-    HERO_NODES.forEach(function (node) {
-      var center = heroNodeCenter(node, rect);
-      for (var i = 0; i < node.count && idx < FRAME_COUNT; i++, idx++) {
-        var p = particles[idx];
-        p.targetX = center.x + (Math.random() - 0.5) * 0.4; // near-static jitter
-        p.targetY = center.y + (Math.random() - 0.5) * 0.3;
-        drawFrameParticle(p, heroEased, mixed);
-      }
-    });
-
-    var labelAlpha = Math.max(0, Math.min(1, (heroEased - 0.8) / 0.2));
-    if (labelAlpha > 0) {
-      ctx.font = '11px "IBM Plex Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = rgba(COLORS.text, labelAlpha);
-      HERO_NODES.forEach(function (n) {
-        var c = heroNodeCenter(n, rect);
-        ctx.fillText(HERO_LABELS[n.key], c.x, c.y + 24);
-      });
-    }
-  }
-
   function drawFrameParticle(p, eased, color) {
     var driftFactor = 1 - eased;
     p.x += p.vx * driftFactor;
@@ -431,19 +464,16 @@
       return categoryColor(PROJECTS[currentProjectIndex].category);
     }
     if (scrollFrac > 0.95) return COLORS.muted; // settling near the footer
-    if (heroEased < 1) return lerpColor(COLORS.amber, COLORS.teal, heroEased);
-    return COLORS.teal;
+    // Default background tone elsewhere on the page: amber, matching the
+    // hero flow's Bronze/raw-data colour (see the spec's colour table).
+    // Stage C will introduce a proper progress-driven amber -> teal
+    // gradient here too; Stage B has no such progress value yet.
+    return COLORS.amber;
   }
 
-  // Whether hero/projects currently have exclusive claim on the first
-  // FRAME_COUNT particles. Computed once here and reused everywhere else
-  // (previously this was recomputed slightly differently inside
-  // drawAmbient, and that second copy incorrectly required
-  // heroProgress < 1 — which becomes false at the exact moment the hero
-  // finishes converging, right when it should still hold the claim. That
-  // let ambient drift fight over the same particles the hero was using,
-  // which is why convergence looked incomplete.)
-  var heroClaimsFrame = false;
+  // Whether the projects section currently has exclusive claim on the
+  // first FRAME_COUNT particles (ambient drift is paused on those
+  // particles while the projects card sequence is using them).
   var projectsClaimFrame = false;
 
   function drawAmbient() {
@@ -452,7 +482,7 @@
     var scrollFrac = window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
     var settling = scrollFrac > 0.97 && footerRect;
 
-    var startIdx = (heroClaimsFrame || projectsClaimFrame) ? FRAME_COUNT : 0;
+    var startIdx = projectsClaimFrame ? FRAME_COUNT : 0;
     for (var i = startIdx; i < TOTAL_COUNT; i++) {
       var p = particles[i];
       if (settling) {
@@ -482,14 +512,24 @@
 
   var rafId = null;
   function draw() {
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    // Motion trails (see hero-architecture-spec.md's "Motion trails"
+    // technique) replace the old per-frame ctx.clearRect(). Instead of
+    // wiping the canvas blank every frame, this erases just a little bit
+    // of what's already there, so every moving particle leaves a short
+    // fading trail behind it. `destination-out` compositing subtracts
+    // alpha from existing pixels — a plain translucent fillRect would NOT
+    // work here, because the canvas itself is transparent (the page's
+    // grid-overlay shows through it), so "painting black at 12% opacity"
+    // would tint everything grey instead of fading it out.
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)'; // lower alpha = longer trails, higher = shorter
+    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    ctx.globalCompositeOperation = 'source-over'; // back to normal drawing for everything below
 
-    heroClaimsFrame = heroEased > 0.001 && heroSection.getBoundingClientRect().bottom > 0;
+    heroTime += 1 / 60; // fixed step, not real elapsed time — see heroTime's declaration above
+    drawHeroParticles();
+
     projectsClaimFrame = currentProjectIndex >= 0 && projectsRawProgress < 1 && frameEased > 0.001;
-
-    if (heroClaimsFrame) {
-      drawHeroFrame();
-    }
     if (currentProjectIndex >= 0) {
       drawProjectFrame();
     }
