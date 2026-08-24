@@ -204,25 +204,55 @@ screen — copy and animation reinforcing each other.
 
 ---
 
-## Colour
+## Colour — "Warm Archive"
 
-Use the existing tokens. Do not introduce new colours.
+Superseded from the original amber/muted/teal-on-navy proposal after a
+palette review. **Same dark register, same token names — only the hex
+values changed.** Nothing else in this spec needed rethinking: the halo
+technique, the trail-erase technique, and the turbulence-on-dark feel all
+carry over unchanged.
 
-| Stage | Token | Hex |
+**Rationale for the shift:** warm instead of cool reads like an aged
+cockpit instrument panel rather than a monitor. The verdigris insight
+colour is a deliberate double meaning — verdigris is literally what
+bronze and copper turn as they age, so "raw → verdigris" reinforces the
+Bronze→Gold metaphor instead of just being a nice colour.
+
+| Token | Role | Hex |
 |---|---|---|
-| Bronze / raw | `--amber` | #F5A623 |
-| Silver / transforming | `--text-muted` | #8C97AD |
-| Gold / insight | `--teal` | #4FD1C5 |
+| `--ink` | page background | `#14100D` |
+| `--panel` | card/panel surface | `#1E1712` |
+| `--text` | primary text | `#F1E9DD` |
+| `--text-muted` | Silver / transforming | `#A89A87` |
+| `--amber` | Bronze / raw | `#D97D4A` |
+| `--teal` | Gold / insight | `#4F9C8C` |
+| `--purple` | analysis category | `#8E5A6B` |
 
-Rationale: amber already means "origin" sitewide (aerospace era in the
-project category system). Amber-as-raw-data is the same meaning, not a
-competing one — amber is where things start, teal is where they end up.
-`--text-muted` is already a near-perfect silver.
+`--purple` is a new addition at this step — the original Warm Archive
+sketch reused the grey for "analysis," which would have collapsed two
+distinct project categories into one colour. A muted dusty plum keeps it
+in the same warm/archival family while staying clearly distinct from
+both the terracotta and the verdigris.
+
+Compute `-dim` variants (used for soft background washes, e.g.
+`--amber-dim`) the same way as before: same hue, ~12-14% alpha.
 
 **Protagonist entity and final insight formation:** near-white core
-(`--text`, #E7ECF5) with a teal halo. This makes the Gold stage read as
-genuinely brighter and more refined without adding a palette colour or
-using neon.
+(`--text`, #F1E9DD) with a `--teal` halo — this still works exactly as
+designed, since Warm Archive stays in the dark register. (Note for
+later: this glow technique would need to invert — dark core instead of
+light — if the site ever moves to the light "Warm Stone" palette. Not a
+concern for the current build.)
+
+**Deferred, not discarded — "Warm Stone" as a planned v2.** A light,
+warm, editorial palette (cream background, deep ink text, terracotta +
+deep pine accents) was seriously considered and is genuinely more
+distinctive than either dark option. Explicitly not built now: it would
+mean redesigning every section for light mode, not just swapping hero
+tokens, and doing that properly deserves its own scoped pass once the
+current site exists and works — not squeezed in as an afterthought here.
+Full palette values are preserved in `palette-comparison.html` if this
+gets picked up later.
 
 ---
 
