@@ -75,12 +75,15 @@
     return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
   }
   var rootStyle = getComputedStyle(document.documentElement);
+  // Flight Recorder palette (see hero-architecture-spec.md's amendment).
+  // steel/bone are the neutral range almost every particle draws from;
+  // accent is the ONE saturated colour, used sparingly (see drawHeroParticles).
   var COLORS = {
-    amber: hexToRgb(rootStyle.getPropertyValue('--amber').trim() || '#F5A623'),
-    teal: hexToRgb(rootStyle.getPropertyValue('--teal').trim() || '#4FD1C5'),
-    purple: hexToRgb(rootStyle.getPropertyValue('--purple').trim() || '#A78BFA'),
-    text: hexToRgb(rootStyle.getPropertyValue('--text').trim() || '#E7ECF5'),
-    muted: hexToRgb(rootStyle.getPropertyValue('--text-muted').trim() || '#8C97AD')
+    steel: hexToRgb(rootStyle.getPropertyValue('--steel').trim() || '#55524B'),
+    bone: hexToRgb(rootStyle.getPropertyValue('--bone').trim() || '#C7C0B2'),
+    accent: hexToRgb(rootStyle.getPropertyValue('--accent').trim() || '#F04E1B'),
+    text: hexToRgb(rootStyle.getPropertyValue('--text').trim() || '#EDEBE6'),
+    muted: hexToRgb(rootStyle.getPropertyValue('--text-muted').trim() || '#8A867E')
   };
   function lerpColor(a, b, t) {
     return { r: a.r + (b.r - a.r) * t, g: a.g + (b.g - a.g) * t, b: a.b + (b.b - a.b) * t };
@@ -203,6 +206,15 @@
     p.phase = Math.random() * Math.PI * 2; // offsets each particle's turbulence so they don't all wobble in sync
     p.densityThreshold = Math.random(); // the intensity level at which this particle fades out (see drawHeroParticles)
 
+    // Colour identity (Stage 5). tone picks this particle's own spot
+    // between --steel (dark) and --bone (light) — every particle gets a
+    // slightly different value, which is what gives the neutral field
+    // real tonal range instead of every particle being one flat grey.
+    // isSpark is a rare (~5%) flag that makes a particle render in the
+    // one --accent colour instead — a rare flash, not a common colour.
+    p.tone = Math.random();
+    p.isSpark = Math.random() < 0.05;
+
     collapseHeroTrail(p); // see above — avoids a streak from the old position to the new one
     return p;
   }
@@ -289,14 +301,18 @@
     // cheap DOM read per frame, the same pattern drawProjectFrame()
     // already uses for this exact element), then every particle below
     // just checks its own distance to this one point.
-    var projectColor = null, projectCx = 0, projectCy = 0, projectRadius = 0;
+    // Stage 5 note: this glow always tints toward --accent now, not a
+    // per-category hue — --accent is "the one striking colour" in the
+    // finalised palette, so the project-proximity moment is exactly
+    // where it gets spent, rather than splitting it three ways.
+    var projectGlowActive = false, projectCx = 0, projectCy = 0, projectRadius = 0;
     if (currentProjectIndex >= 0 && projectStageEl) {
       var stageRect = projectStageEl.getBoundingClientRect();
       if (stageRect.width > 0) {
         projectCx = stageRect.left + stageRect.width / 2;
         projectCy = stageRect.top + stageRect.height / 2;
         projectRadius = Math.max(stageRect.width, stageRect.height) / 2 + HERO_PROJECT_EFFECT_RADIUS;
-        projectColor = categoryColor(PROJECTS[currentProjectIndex].category);
+        projectGlowActive = true;
       }
     }
 
@@ -309,7 +325,7 @@
       // current position — nothing stored, nothing scroll-direction
       // dependent.
       var projectBoost = 0;
-      if (projectColor) {
+      if (projectGlowActive) {
         var pdx = p.x - projectCx, pdy = p.y - projectCy;
         var pdist = Math.sqrt(pdx * pdx + pdy * pdy);
         projectBoost = Math.max(0, 1 - pdist / projectRadius);
@@ -441,9 +457,17 @@
       // ---- SIZE VARIANCE: this particle's own size -> one shared size ----
       var radius = lerp(p.r, HERO_UNIFORM_RADIUS, intensity);
       var alpha = p.alpha * densityFade;
-      // Tint toward the project's category colour near the card, same
-      // colours already used for that project's own card/tags elsewhere.
-      var color = projectColor ? lerpColor(COLORS.amber, projectColor, projectBoost) : COLORS.amber;
+      // ---- COLOUR (Stage 5) ----
+      // Every particle's resting colour is its own personal spot between
+      // --steel and --bone (p.tone, picked once at spawn) — that's what
+      // gives the neutral field real tonal range instead of one flat
+      // grey. A rare "spark" particle (~5%, see resetHeroParticle) skips
+      // that and always renders in --accent instead. Either way, close
+      // to the project card, colour blends the rest of the way toward
+      // --accent — the ONE place in the whole system that colour reacts
+      // to anything other than intensity.
+      var baseColor = p.isSpark ? COLORS.accent : lerpColor(COLORS.steel, COLORS.bone, p.tone);
+      var color = projectBoost > 0 ? lerpColor(baseColor, COLORS.accent, projectBoost) : baseColor;
 
       // ---- DRAW THE TRAIL ----
       // Two overlapping strokes: faint and thin along the whole tail,
@@ -561,6 +585,7 @@
         vy: 0.03 + Math.random() * 0.05,
         r: Math.random() * 1.4 + 0.6,
         alpha: Math.random() * 0.4 + 0.25,
+        tone: Math.random(), // this particle's own spot between --steel and --bone — see drawAmbient
         targetX: 0, targetY: 0
       });
     }
@@ -623,13 +648,6 @@
   var projectsRawProgress = 0;
   var currentProjectIndex = -1; // -1 = not started yet
   var frameEased = 0; // 0 = dispersed, 1 = fully formed card
-  var lastCategoryColorKey = null;
-
-  function categoryColor(key) {
-    if (key === 'aerospace') return COLORS.amber;
-    if (key === 'engineering') return COLORS.teal;
-    return COLORS.purple;
-  }
 
   function populateProjectStage(project) {
     if (stageIdEl) stageIdEl.innerHTML = project.id + ' <span class="job__lifecycle">· ' + project.lifecycle + '</span>';
@@ -731,7 +749,10 @@
     if (!projectStageEl || currentProjectIndex < 0) return;
     var project = PROJECTS[currentProjectIndex];
     var rect = projectStageEl.getBoundingClientRect();
-    var color = categoryColor(project.category);
+    // Neutral bone, not a per-category hue — --accent is reserved for the
+    // hero's project-proximity glow (Stage 4/5), so this card-forming
+    // effect stays in the steel/bone family like everything else.
+    var color = COLORS.bone;
 
     // outline points along the card's perimeter (straight edges — corner
     // rounding is small relative to card size, not worth the complexity)
@@ -766,17 +787,15 @@
     }
   }
 
+  // Returns null to mean "use this particle's own steel<->bone tone"
+  // rather than one shared colour — see drawAmbient(). Only the footer-
+  // settling and viewing-a-project states override that with one flat
+  // colour, since those are deliberate, singular moments.
   function currentAmbientColor() {
     var scrollFrac = window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    if (currentProjectIndex >= 0 && projectsRawProgress < 1) {
-      return categoryColor(PROJECTS[currentProjectIndex].category);
-    }
+    if (currentProjectIndex >= 0 && projectsRawProgress < 1) return COLORS.bone;
     if (scrollFrac > 0.95) return COLORS.muted; // settling near the footer
-    // Default background tone elsewhere on the page: amber, matching the
-    // hero flow's Bronze/raw-data colour (see the spec's colour table).
-    // Stage C will introduce a proper progress-driven amber -> teal
-    // gradient here too; Stage B has no such progress value yet.
-    return COLORS.amber;
+    return null;
   }
 
   // Whether the projects section currently has exclusive claim on the
@@ -811,9 +830,14 @@
         if (p.y > window.innerHeight) { p.y = 0; p.x = Math.random() < 0.5 ? Math.random() * 0.28 * window.innerWidth : (0.72 + Math.random() * 0.28) * window.innerWidth; }
       }
       var displayAlpha = Math.min(p.alpha, 0.4) * (p.settleFade === undefined ? 1 : p.settleFade);
+      // color is null in the normal case — that means "no single shared
+      // colour," so each particle uses its own steel<->bone tone instead
+      // (real tonal range, not a flat grey). It's only a fixed colour
+      // during the footer-settle and viewing-a-project moments above.
+      var particleColor = color || lerpColor(COLORS.steel, COLORS.bone, p.tone);
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = rgba(color, displayAlpha); // capped opacity — content comes first
+      ctx.fillStyle = rgba(particleColor, displayAlpha); // capped opacity — content comes first
       ctx.fill();
     }
   }
