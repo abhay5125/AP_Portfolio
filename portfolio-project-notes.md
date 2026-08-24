@@ -227,6 +227,74 @@ The stage 5 medallion hero (three stage boxes + a dot travelling through) was re
 
 **Build split into 8 stages (A–H)** in the spec. Stages C and D are the architecturally hard parts.
 
+### 13. Creative-direction detour — explored and closed
+
+Briefly explored moving away from the "tech portfolio" aesthetic entirely: five alternative creative directions were worked up (Drafting Table, Logbook, Route, Feature, Reel), plus a niche space/mission-documentation angle and a full asset/scope/roadmap assessment. Documents kept for reference: `five-creative-directions.md`, `direction-decision-and-roadmap.md`.
+
+**Outcome: not pursued.** Returned to the particle hero direction. The detour was still worthwhile — it produced a much sharper brief for the particle hero than existed before it, and the two governing documents (`hero-architecture-spec.md`, `claude-code-prompts.md`) were written *before* the detour and remain fully valid.
+
+**Current position:**
+- Repo is on the stage-4 particle build (`site-particles.js`), which is exactly what the spec's preserve/discard lists were written against.
+- The stage-5 medallion-box files are abandoned and have been deleted so they can't be used by mistake.
+- `hero-architecture-spec.md` is complete and covers composition, hero content, colour, the Cascade exit transition, nav behaviour, performance constraints, and all eight build stages.
+- `claude-code-prompts.md` has a ready-to-paste prompt per stage.
+
+**Small content task noted:** now that the hero is only name + role + one-liner, the longer descriptive paragraph that used to live in the hero should move into the About section. Not blocking — handle during stage 6 of the Concept 1 plan.
+
+**After the hero (stages A–H) completes,** the locked Concept 1 plan resumes: flight-plan nav strip, projects node-graph (5 nodes), skills section, curved dividers, polish pass, then project detail pages.
+
+### 14. Palette decision — Warm Archive locked in
+
+Explored three alternatives to the original amber/teal/purple-on-navy palette: Warm Archive (dark, warm-toned), Cool Precision (dark, blueprint blue with one warm accent), Warm Stone (light, cream/terracotta, editorial). Full swatch comparison built for reference: `palette-comparison.html`.
+
+**Decided: Warm Archive.** Same dark register as before — same token *names*, only the hex values changed. `hero-architecture-spec.md`'s colour section is fully updated with the new values:
+- `--ink` #14100D, `--panel` #1E1712, `--text` #F1E9DD, `--text-muted` #A89A87
+- `--amber` (raw/Bronze) #D97D4A, `--teal` (insight/Gold) #4F9C8C, `--purple` (analysis category) #8E5A6B — new addition, needed because Warm Archive's original sketch reused grey for "analysis," which would have collapsed two project categories into one colour.
+
+**Why this and not the others:** lowest technical risk — nothing in the hero spec needed rethinking, it's a token-value swap not a redesign. Verdigris-as-insight is a nice double meaning (verdigris is literally aged bronze/copper), reinforcing the Bronze→Gold metaphor.
+
+**Warm Stone — deferred to v2, not discarded.** The genuinely most distinctive of the three, but adopting it now would mean redesigning every section for light mode, not just the hero — a bigger scope change than made sense right before starting the build. Full values preserved in `palette-comparison.html` for whenever this gets picked up properly.
+
+**One technical note surfaced during this discussion, worth remembering:** the motion-trail technique (canvas alpha erase) is background-colour-agnostic and needs no changes either way. The insight-stage glow (near-white core) does NOT need to change for Warm Archive since it's still a dark palette — it WOULD need to invert (dark core instead of light) if Warm Stone is ever built.
+
+**Status: ready to build.** All decisions closed. Next action is opening Claude Code and starting Stage A using `claude-code-prompts.md`.
+
+### 15. Final particle direction — sitewide ambient flow, no pin
+
+Supersedes the Orbital Migration recommendation from entry 14/`particle-system-concepts.md`. Revised, not just deferred to — new evidence changed the analysis: continuous flow (Stage B) had already been tested and loved, while Orbital was untested and hypothetical. Given the user has explicitly said visual result matters more than conceptual depth, "known to look beautiful" beat "theoretically more original."
+
+**Decided:**
+- No pin, anywhere on the site. Fixed full-page canvas, ambient the entire time.
+- One motion rule: turbulence + a constant rightward bias (organic curved paths with a net left-to-right drift, not a straight line).
+- One continuous `intensity` parameter driven by overall scroll fraction — controls turbulence amplitude, density, speed, size variance together. Explicitly rejected: six separately authored per-section behavioural states (too complex, risks looking choppy rather than continuous).
+- One local effect layered on top: brief density/turbulence bump near project sections, tinted with that project's category colour. Nothing else is section-specific.
+- Cursor: gentle repulsion/deflection, never attraction.
+- Colour: majority neutral, accent reserved for project-proximity tint + rare "spark" particles.
+- Bottom of page: no special handling needed — naturally sparse since `intensity` has been decreasing the whole way down. Optional: a few particles exit the bottom edge near the footer.
+- **Hard rule:** no particle property may depend on the previous frame or scroll direction — everything recomputed fresh from current scroll position every frame. This is the rule that prevents repeating the dimming/reconvergence bugs hit twice already.
+
+**Still reused from the pinned-hero spec:** turbulence technique, per-particle trail technique (the fixed version, not the flawed destination-out approach), colour-token reading, device-capability scaling, typography repulsion (particles still avoid the name, just not tied to a pin).
+
+**No longer applicable:** pin distance tuning, the Cascade exit transition, nav fade tied to pin progress, medallion stage-trigger thresholds.
+
+`hero-architecture-spec.md` has been amended with a notice at the top pointing to this decision — the original pinned-hero content below it is kept for reference but should not be built from.
+
+### 16. Revert decision, rewritten prompts, palette finalised
+
+**Revert:** clean revert to the Stage B commit (continuous flow, before lane-convergence), not a surgical removal of just the convergence code — lower risk of leftover dead code or subtle bugs from an incomplete strip-out. Build the new flow-field architecture fresh from that known-good point.
+
+**`claude-code-prompts.md` fully rewritten** — six stages instead of the old eight (A–H), matching the simpler unpinned architecture:
+1. Clean revert to Stage B
+2. Core flow motion (turbulence + rightward bias)
+3. Intensity parameter tied to scroll fraction, no pin
+4. Interactions (project-proximity tint, cursor deflection, typography repulsion)
+5. Colour (finalised Flight Recorder tokens)
+6. Footer touch + hardening/performance pass
+
+**Palette finalised: Flight Recorder, with two neutrals added for tonal range** (`--panel-alt` #201D19, `--bone` #C7C0B2), specifically to address a real concern — that a single-accent system could read as monotone rather than restrained. Fix wasn't adding more hues, it was giving the neutral family actual tonal range (steel → mid greys → bone) plus relying on the particle motion itself to keep ambient areas visually alive. Full token table now lives directly in `hero-architecture-spec.md`'s amendment section.
+
+**Status: ready to build again.** Next action is Stage 1 in Claude Code.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 

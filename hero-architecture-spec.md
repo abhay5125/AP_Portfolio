@@ -1,5 +1,81 @@
 # Hero rebuild — architecture spec
 
+> **AMENDMENT — read this first.** Everything below this notice describes
+> the *pinned hero transformation* version of the particle system
+> (medallion stages, the Cascade exit, a dedicated hero scroll sequence).
+> That direction has been superseded by a simpler, sitewide ambient
+> flow-field, decided after testing showed the pinned convergence
+> mechanic (lanes, then aggregation) didn't look as good as the plain
+> continuous flow from Stage B.
+>
+> **Build against this summary, not the pinned sections below.**
+>
+> - **No pin, anywhere.** The canvas is a fixed, full-page ambient layer
+>   running the entire time you're on the site. Nothing scroll-jacks.
+> - **One motion rule:** `velocity = turbulence(x, y, time) + rightward_bias`.
+>   Organic curved paths with a net left-to-right drift — smoke in
+>   moving air, not a conveyor belt.
+> - **One continuous parameter, `intensity`,** driven directly by overall
+>   page scroll fraction (0 at top, 1 at bottom). Turbulence amplitude,
+>   density, speed, and size variance all scale off this single number.
+>   Do NOT author separate tuned states per section — that's more
+>   complexity than the effect needs and risks looking choppy rather than
+>   continuous.
+> - **One local effect layered on top:** a brief density/turbulence bump
+>   near project sections, tinted with that project's category colour.
+>   Nothing else is section-specific.
+> - **Cursor:** gentle local repulsion/deflection, never attraction.
+> - **Colour: finalised.** Flight Recorder, with an added neutral step so
+>   restraint doesn't tip into monotone:
+>
+>   | Token | Role | Hex |
+>   |---|---|---|
+>   | `--ink` | background | `#121212` |
+>   | `--panel` | surface | `#1B1B1A` |
+>   | `--panel-alt` | secondary surface | `#201D19` |
+>   | `--border` | dividers | `#2E2E2C` |
+>   | `--steel` | dark secondary neutral | `#55524B` |
+>   | `--bone` | light secondary neutral | `#C7C0B2` |
+>   | `--text` | primary text | `#EDEBE6` |
+>   | `--text-muted` | secondary text | `#8A867E` |
+>   | `--accent` | the one striking colour | `#F04E1B` |
+>   | `--accent-dim` | soft wash | `rgba(240,78,27,0.12)` |
+>
+>   `--bone` is new since the original colour review — a warm light
+>   neutral for secondary emphasis (headings, hover states) that adds
+>   real tonal range without introducing a second accent. The great
+>   majority of particles stay in the steel/bone neutral family; `--accent`
+>   is reserved for the project-proximity tint and rare spark particles
+>   only. Motion itself carries a lot of the "not dull" job — a static
+>   neutral background reads as flat, a neutral background with
+>   continuous organic flow does not.
+> - **The bottom needs no special handling.** Density is already low
+>   there because `intensity` has been decreasing the whole way down.
+>   Optional: let a few particles exit the bottom edge near the footer
+>   rather than only the right edge.
+> - **The hard rule, non-negotiable:** no particle property may depend on
+>   what happened in a previous frame or a previous scroll direction.
+>   Everything is a pure function of *current* scroll position, freshly
+>   computed every frame. This is the rule that prevents repeating the
+>   two bugs already hit twice (permanent dimming, inconsistent
+>   reconvergence on scroll-up).
+>
+> **Still valid and worth reusing from the sections below:** the
+> turbulence/sum-of-sines technique, the per-particle trail technique
+> (Stage C's fix — see `portfolio-project-notes.md` entry 14/15 for why
+> the original destination-out approach was flawed), the colour-token
+> reading helpers, the device-capability scaling, and the typography
+> repulsion technique from Stage F (particles still need to flow around
+> the name — that part of the plan is unchanged, just not tied to a pin
+> anymore).
+>
+> **No longer applicable:** the pin distance tuning, Stage G's Cascade
+> exit transition, the nav fade-in tied to pin progress 0.85–1.00 (the
+> nav can just fade in on initial page load instead), and the
+> Bronze/Silver/Gold stage-trigger thresholds.
+
+---
+
 Handoff document for building the new particle hero. Written to be given
 directly to Claude Code (or Opus) as context, alongside
 `portfolio-project-notes.md`.
