@@ -215,6 +215,11 @@
     p.tone = Math.random();
     p.isSpark = Math.random() < 0.05;
 
+    // Footer touch (Stage 6) — see the bottom-edge check in
+    // drawHeroParticles(). Only matters once intensity is already high
+    // (i.e. near the very bottom of the page); does nothing anywhere else.
+    p.exitsDown = Math.random() < 0.12;
+
     collapseHeroTrail(p); // see above — avoids a streak from the old position to the new one
     return p;
   }
@@ -297,17 +302,16 @@
 
     // ---- PROJECT-PROXIMITY EFFECT SETUP ----
     // The ONLY section-specific behaviour in the whole system, per the
-    // spec. Worked out once per frame (not per particle — this is one
-    // cheap DOM read per frame, the same pattern drawProjectFrame()
-    // already uses for this exact element), then every particle below
-    // just checks its own distance to this one point.
+    // spec. Worked out once per frame (not per particle) from
+    // projectStageRect, a plain cached object — see cacheProjectStageRect()
+    // above draw(). No DOM read happens here at all any more.
     // Stage 5 note: this glow always tints toward --accent now, not a
     // per-category hue — --accent is "the one striking colour" in the
     // finalised palette, so the project-proximity moment is exactly
     // where it gets spent, rather than splitting it three ways.
     var projectGlowActive = false, projectCx = 0, projectCy = 0, projectRadius = 0;
-    if (currentProjectIndex >= 0 && projectStageEl) {
-      var stageRect = projectStageEl.getBoundingClientRect();
+    if (currentProjectIndex >= 0 && projectStageRect) {
+      var stageRect = projectStageRect;
       if (stageRect.width > 0) {
         projectCx = stageRect.left + stageRect.width / 2;
         projectCy = stageRect.top + stageRect.height / 2;
@@ -409,7 +413,34 @@
       // random vertical line across the whole screen — that streak is
       // exactly the bug reported and fixed here.
       if (p.y < 0) { p.y = window.innerHeight; collapseHeroTrail(p); }
-      if (p.y > window.innerHeight) { p.y = 0; collapseHeroTrail(p); }
+
+      if (p.y > window.innerHeight) {
+        // Optional footer touch (Stage 6, per the spec's footer bullet):
+        // near the very bottom of the page, a small fixed fraction of
+        // particles (p.exitsDown, ~12%, picked once at spawn) exit
+        // through the bottom edge instead of wrapping back to the top —
+        // a small nod to the flow "continuing beyond what's visible,"
+        // rather than every particle only ever exiting right. Everyone
+        // else wraps exactly as before.
+        //
+        // Respawns the instant it crosses the edge, with no extra margin
+        // to travel first (unlike the right-edge exit, which waits
+        // HERO_EDGE_MARGIN px). An earlier version tried to make it
+        // travel that same extra distance first, but nothing in this
+        // flow field pushes particles in a fixed direction — velocity
+        // here is pure side-to-side/up-down wind (see the "one motion
+        // rule" above), so a particle sitting right at the bottom edge
+        // just wanders in place rather than reliably continuing on
+        // through. Respawning immediately sidesteps that without
+        // inventing a separate "falling" motion mode just for this
+        // decorative touch.
+        if (p.exitsDown && intensity > 0.85) {
+          resetHeroParticle(p, true);
+        } else {
+          p.y = 0;
+          collapseHeroTrail(p);
+        }
+      }
 
       // Once a particle has drifted past the right edge, respawn it at
       // the left and let it start the same wandering loop again — it
@@ -593,7 +624,16 @@
   createParticles();
 
   function resizeCanvas() {
-    var dpr = window.devicePixelRatio || 1;
+    // devicePixelRatio is how many real screen pixels there are per CSS
+    // pixel — 1 on a normal display, 2 or 3 on high-density/retina ones.
+    // Matching it keeps the canvas sharp instead of blurry, but it's
+    // CAPPED here per the spec's performance constraints: this canvas
+    // repaints its full area every single frame, and that cost scales
+    // with the SQUARE of this number — uncapped on a 3x display means
+    // painting 9x as many pixels per frame as on a 1x one, for sharpness
+    // nobody can actually see the difference in. 2 (1.5 on weaker
+    // devices) is the spec's chosen ceiling.
+    var dpr = Math.min(window.devicePixelRatio || 1, isLowPower ? 1.5 : 2);
     canvas.width = window.innerWidth * dpr;
     canvas.height = window.innerHeight * dpr;
     canvas.style.width = window.innerWidth + 'px';
@@ -621,6 +661,44 @@
   }
   cacheHeroTextBox();
 
+  // ---- project card position (Stage 6 performance pass) ----
+  // Same reasoning as heroTextBox above. This one used to be read with
+  // getBoundingClientRect() directly inside the animation loop (once per
+  // frame, in both drawHeroParticles()'s project-glow setup and in
+  // drawProjectFrame()) — technically "per frame, not per particle," but
+  // the spec's rule is unconditional, and it turned out to be easy to
+  // avoid entirely: the project card only actually MOVES when either the
+  // window resizes or a different project scrolls into place (it's
+  // pinned in between), so caching on exactly those two events — rather
+  // than continuously — loses nothing.
+  var projectStageRect = null;
+  function cacheProjectStageRect() {
+    if (!projectStageEl) { projectStageRect = null; return; }
+    var r = projectStageEl.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) { projectStageRect = null; return; } // not laid out / not visible yet
+    projectStageRect = {
+      left: r.left, top: r.top, right: r.right, bottom: r.bottom,
+      width: r.width, height: r.height
+    };
+  }
+
+  // ---- footer position (Stage 6 performance pass) ----
+  // The footer is trickier: unlike the two boxes above, it's an ordinary
+  // (non-pinned) element, so its position relative to the VIEWPORT
+  // genuinely does change every frame while scrolling — that's the one
+  // real obstacle to just caching it once. The fix is to cache its
+  // position relative to the whole DOCUMENT instead (which never
+  // changes), and turn that into a viewport position with plain
+  // subtraction against window.scrollY each frame — arithmetic, not a
+  // layout-forcing DOM read.
+  var footerBox = null;
+  function cacheFooterBox() {
+    if (!footerLogEl) return;
+    var r = footerLogEl.getBoundingClientRect();
+    footerBox = { left: r.left, width: r.width, docTop: r.top + window.scrollY };
+  }
+  cacheFooterBox();
+
   // ---- cursor repulsion (Stage 4) ----
   // Just the current mouse position, updated by the browser whenever the
   // mouse moves. Nothing to compute here — the actual repulsion math
@@ -632,14 +710,11 @@
     mouseY = e.clientY;
   });
 
-  // Stage B has no hero ScrollTrigger yet, deliberately — see the spec's
-  // "Two independent systems" section: the animation loop always runs on
-  // its own via requestAnimationFrame (see drawHeroParticles() above and
-  // draw() below), and scroll only ever changes *how* particles behave,
-  // never *whether* they move. Stage C is what introduces a single
-  // `scrollProgress` variable (via a ScrollTrigger pin on the hero,
-  // mirroring the pattern below for the projects section) and uses it to
-  // make the flow feel more "ordered" from left to right.
+  // The hero has no ScrollTrigger at all — per the amendment's "no pin,
+  // anywhere" rule, it doesn't need one. currentIntensity() above reads
+  // window.scrollY directly, every frame, with nothing pinned or
+  // scroll-jacked. The ScrollTrigger below belongs to the (unrelated,
+  // pre-existing) projects card sequence only.
   var navHeight = navEl ? navEl.offsetHeight : 0;
 
   // =====================================================================
@@ -713,6 +788,7 @@
         populateProjectStage(PROJECTS[idx]);
         updateProgressDots(idx);
         projectStageEl.classList.remove('is-content-visible');
+        cacheProjectStageRect(); // content just changed size — re-measure once, not every frame
       }
 
       // assembly 0-0.20 -> full 1, hold, departure 0.80-1.00 -> back to 0
@@ -746,9 +822,9 @@
   }
 
   function drawProjectFrame() {
-    if (!projectStageEl || currentProjectIndex < 0) return;
+    if (!projectStageEl || currentProjectIndex < 0 || !projectStageRect) return;
     var project = PROJECTS[currentProjectIndex];
-    var rect = projectStageEl.getBoundingClientRect();
+    var rect = projectStageRect; // cached — see cacheProjectStageRect() above draw()
     // Neutral bone, not a per-category hue — --accent is reserved for the
     // hero's project-proximity glow (Stage 4/5), so this card-forming
     // effect stays in the steel/bone family like everything else.
@@ -805,7 +881,16 @@
 
   function drawAmbient() {
     var color = currentAmbientColor();
-    var footerRect = footerLogEl ? footerLogEl.getBoundingClientRect() : null;
+    // footerBox.docTop is cached once (see cacheFooterBox() above draw())
+    // as a position relative to the whole DOCUMENT, which never changes.
+    // Turning that into a current on-screen position is just subtracting
+    // the current scroll offset — arithmetic, not a getBoundingClientRect()
+    // call, so this can run every frame for free.
+    var footerRect = footerBox ? {
+      left: footerBox.left,
+      width: footerBox.width,
+      top: footerBox.docTop - window.scrollY
+    } : null;
     var scrollFrac = window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
     var settling = scrollFrac > 0.97 && footerRect;
 
@@ -890,6 +975,8 @@
     resizeTimer = setTimeout(function () {
       resizeCanvas();
       cacheHeroTextBox();
+      cacheProjectStageRect();
+      cacheFooterBox();
       ScrollTrigger.refresh();
     }, 150);
   });
