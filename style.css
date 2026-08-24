@@ -22,34 +22,27 @@
                                             bronze turns as it ages)
    ============================================ */
 :root {
-  /* -- surfaces, darkest to lightest -- */
-  --ink: #0D0E10;          /* page background */
-  --panel: #16171A;        /* cards and raised surfaces */
-  --panel-border: #2A2B2D; /* borders/dividers — derived, sits just above --panel */
-  --line: #1B1C1E;         /* background grid overlay — derived, only just above --ink */
+/* -- surfaces -- */
+--ink: #07080D;
+--panel: #0D1018;
+--panel-border: #202534;
+--line: #11151E;
 
-  /* -- text -- */
-  --text: #ECE9E2;         /* primary text */
-  --text-muted: #A5A8AD;   /* secondary text, and "Silver / transforming" in the hero */
+/* -- text -- */
+--text: #F2F3F0;
+--text-muted: #858B98;
 
-/* -- accents --
-   Colour has meaning rather than simply being decorative.
-   Amber = raw/start
-   Orange = transformation/process
-   Olive = insight/growth
-   Slate = structure/support */
+/* -- accents -- */
+--violet: #8B5CF6;
+--cyan: #22D3EE;
+--magenta: #E879F9;
+--lime: #A3E635;
 
-  --amber: #F2B705;        /* "Bronze / raw" — signal amber */
-  --amber-dim: rgba(242, 183, 5, 0.14);
-
-  --orange: #E46A2E;       /* "Silver / transforming" — process orange */
-  --orange-dim: rgba(228, 106, 46, 0.14);
-
-  --olive: #7A8456;        /* "Gold / insight" — muted olive */
-  --olive-dim: rgba(122, 132, 86, 0.14);
-
-  --slate: #596574;        /* structure / supporting elements */
-  --slate-dim: rgba(89, 101, 116, 0.14);
+/* -- dim -- */
+--violet-dim: rgba(139, 92, 246, 0.13);
+--cyan-dim: rgba(34, 211, 238, 0.13);
+--magenta-dim: rgba(232, 121, 249, 0.13);
+--lime-dim: rgba(163, 230, 53, 0.10);
 
   --font-display: "Space Grotesk", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
