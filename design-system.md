@@ -56,6 +56,21 @@ Replace the implicit spacing values scattered through the current CSS with a sin
 
 ## 3. Color
 
+> **AMENDMENT.** The palette below (`--ink`/`--panel`/`--amber`/`--teal`)
+> was superseded during the hero rebuild by the "Flight Recorder" palette
+> — see `hero-architecture-spec.md`'s amendment for the finalised token
+> table (`--ink #121212`, `--panel #1B1B1A`, `--panel-alt #201D19`,
+> `--border #2E2E2C`, `--steel #55524B`, `--bone #C7C0B2`, `--text
+> #EDEBE6`, `--text-muted #8A867E`, `--accent #F04E1B` +
+> `--accent-dim`), which is what `style.css`'s `:root` actually defines.
+> `--teal` was dropped entirely; `--amber` and `--purple` survive only as
+> secondary, muted accents for the job cards' category markers (see
+> `.job--aerospace` / `.job--analysis` in `style.css`), not as a second
+> narrative hue running through the whole site the way this section
+> describes. The rest of this section (§3) is otherwise historical —
+> read it for the *reasoning* behind having an era/category colour cue
+> at all, not for the actual hex values.
+
 Keep the palette family, extend it with the amber/teal narrative role and light-touch atmosphere — restrained, not flat-corporate.
 
 ```css

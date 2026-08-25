@@ -43,17 +43,25 @@ revealTargets.forEach(el => observer.observe(el));
 // whole block as one unit. Here each tag should arrive just behind the
 // one before it, so the group assembles rather than appearing at once.
 //
+// .stagger-item is added here rather than baked into the HTML, so a
+// visitor without JavaScript sees the finished tag cloud immediately
+// instead of a block permanently stuck at opacity: 0 (there'd be no
+// observer left to ever add .is-visible and reveal it).
+//
 // The delays are set here rather than as nth-child rules in CSS because
 // a hardcoded per-position delay would silently go stale the moment a
 // tag moved between groups, whereas this just re-counts.
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 document.querySelectorAll('.stack-group').forEach(group => {
-  if (!reduceMotion) {
-    group.querySelectorAll('.tags li').forEach((item, i) => {
+  const h3 = group.querySelector('h3');
+  if (h3) h3.classList.add('stagger-item');
+  group.querySelectorAll('.tags li').forEach((item, i) => {
+    item.classList.add('stagger-item');
+    if (!reduceMotion) {
       // Small head start so the group heading (delay 0) lands first.
       item.style.transitionDelay = (0.08 + i * 0.045) + 's';
-    });
-  }
+    }
+  });
   observer.observe(group);
 });
