@@ -352,7 +352,37 @@ img, svg { display: block; max-width: 100%; }
   max-width: var(--max-width);
   margin: 0 auto;
   padding: 5rem clamp(1.25rem, 5vw, 2rem);
-  border-top: 1px solid var(--border);
+}
+
+/* ---- curved section dividers ----
+   Replaces the old straight `border-top` hairline. One inline SVG per
+   section boundary (see index.html, right after each section's opening
+   tag), each with its own slightly different curve so the four don't
+   read as one mechanically repeated asset — a hard straight edge was
+   the one place left on the page that didn't echo the flow-field's
+   organic curves.
+
+   Positioned absolutely and centred on the boundary itself (half in
+   this section's top padding, half in the previous section's bottom
+   padding) rather than sitting in normal flow, so it occupies the exact
+   spot the old border-top did without adding any extra height. Static —
+   no scroll-trigger, no motion budget spent on something this quiet. */
+.section__divider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 32px;
+  transform: translateY(-16px);
+  overflow: visible;
+  pointer-events: none;
+}
+.section__divider path {
+  fill: none;
+  stroke: var(--steel);
+  stroke-width: 1;
+  opacity: 0.4;
+  vector-effect: non-scaling-stroke;
 }
 
 .section__title {

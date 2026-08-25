@@ -450,6 +450,20 @@ Went through the whole site systematically rather than adding anything new. Find
 
 **One minor polish gap noted, not changed:** the projects-graph hint text says "Hover a node to see what it shares with the others" — accurate on desktop, but the section is tap-driven on mobile (confirmed tapping opens the summary correctly) and there's no swipe/scroll affordance hinting that the diagram continues off-screen. Wording and any visual scroll-hint are content/design calls, flagging rather than changing unasked.
 
+### 27. Curved dividers, and the mobile hint copy fix from note 26
+
+Two independent bits of polish.
+
+**Mobile hint copy** — the "one minor polish gap" flagged in note 26. "Hover a node…" is now "Select a node to see what it shares with the others and read more." One sentence, one verb, works for mouse and touch without detecting either — select (click or tap) is genuinely the action both device types share, so there was no need to describe hover and tap as two different things.
+
+**Curved section dividers** — replaced the flat `border-top: 1px solid var(--border)` on `.section` (previously the one place on the page that still used a hard straight edge instead of echoing the flow-field's organic curves) with a thin static SVG curve at each of the four section boundaries (hero→about, about→projects, projects→skills, skills→contact). Each is a `<svg class="section__divider">` as the first child of the section, absolutely positioned and centred on the boundary itself (half in the previous section's bottom padding, half in this one's top padding) so it sits exactly where the old border did without adding height. `--steel` at 0.4 opacity, no accent colour, `vector-effect="non-scaling-stroke"` so the line stays 1px regardless of how wide the section stretches.
+
+All four curves are different (`M0,16 C300,4 900,28 1200,16` for about, a mirrored version for projects, a two-bump S-curve for skills, and a third single-arc variant for contact) so they don't read as one asset repeated four times. No scroll-trigger — it's a static line, not worth spending motion budget on.
+
+Checked: renders identically with JavaScript disabled (pure markup/CSS, no observer involved), holds up at mobile widths (curve compresses smoothly, no distortion), doesn't intercept clicks (`pointer-events: none`), and doesn't collide with either section's actual content — confirmed by screenshotting each boundary.
+
+`style.css?v=` bumped to `v=15`.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 
