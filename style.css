@@ -44,6 +44,12 @@
   --font-mono: "IBM Plex Mono", monospace;
   --font-body: "Inter", sans-serif;
 
+  /* One easing curve for the whole site — fast start, long settle, like
+     something decelerating rather than a UI element bouncing. Named in
+     design-system.md as --ease-flight; it was previously repeated as a
+     raw cubic-bezier, so it's a real token now. */
+  --ease-flight: cubic-bezier(0.16, 1, 0.3, 1);
+
   --max-width: 1080px;
   --radius: 10px;
 }
@@ -583,7 +589,7 @@ img, svg { display: block; max-width: 100%; }
 .pgraph__rise {
   opacity: 0;
   transform: translateY(8px);
-  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.5s ease, transform 0.5s var(--ease-flight);
 }
 .pgraph.is-revealed .pgraph__rise {
   opacity: 1;
@@ -857,40 +863,129 @@ body.has-node-graph .jobs { display: none; }
 }
 
 /* ============================================
-   SKILLS
+   SKILLS — depth-grouped list
+
+   Replaces the old flat tag cloud. Every skill used to be an identical
+   bordered pill, which gave a language used daily and a text editor
+   exactly the same visual weight. Here the two tiers are told apart by
+   the NEUTRAL RAMP only — brighter/larger/heavier for core, dimmer and
+   denser for familiar. No --accent anywhere in this section: orange is
+   spent on the projects graph and nav, and a page only gets to have one
+   "look here" colour.
+
+   Structurally this is deliberately a typographic list, not another
+   diagram — the projects section immediately above is a node graph, and
+   two diagrams back to back would flatten the page's rhythm. The two
+   tiers even differ in LAYOUT (core reads as a proper list in columns,
+   familiar as a denser inline run), so the hierarchy survives even in
+   black and white.
    ============================================ */
-.stack-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
+.skills {
+  display: flex;
+  flex-direction: column;
+  gap: 2.75rem;
 }
 
-.stack-group h3 {
+.skill-group__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.6rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.skill-group__label {
   font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin-bottom: 0.9rem;
+  font-size: 0.78rem;
   font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bone);
 }
 
-.tags {
+/* The quiet half of the heading: says what the tier actually means, so
+   "Core" and "Familiar" aren't left to be guessed at. */
+.skill-group__note {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.skill-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ---- CORE: a real list, in columns ----
+   One item per line at a comfortable size. The extra room is itself part
+   of the signal — these get space because they matter. */
+.skill-group--core .skill-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem 2rem;
+}
+.skill-group--core .skill-list li {
+  font-size: 1.02rem;
+  font-weight: 500;
+  color: var(--bone);
+  line-height: 1.4;
+}
+
+/* ---- FAMILIAR: a denser inline run ----
+   Flowing rather than listed, smaller and dimmer. Reads as supporting
+   detail at a glance, without needing to be read item by item. */
+.skill-group--familiar .skill-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.45rem 1.4rem;
 }
-.tags li {
-  font-size: 0.88rem;
-  padding: 0.4rem 0.75rem;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+.skill-group--familiar .skill-list li {
+  font-size: 0.86rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* ---- staggered reveal ----
+   The group is watched by the same IntersectionObserver used everywhere
+   else on the site (script.js), which adds .is-visible when it scrolls
+   into view. Items then fade up one after another — their individual
+   delays are set in script.js, since the lists are hand-edited and
+   hard-coding an nth-child delay per item would break the moment you
+   moved a skill between tiers.
+
+   Heading first with no delay, then the items behind it. */
+.skill-group__head,
+.skill-list li {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.55s var(--ease-flight), transform 0.55s var(--ease-flight);
+}
+.skill-group.is-visible .skill-group__head,
+.skill-group.is-visible .skill-list li {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 @media (max-width: 780px) {
-  .stack-grid { grid-template-columns: repeat(2, 1fr); }
+  .skill-group--core .skill-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 480px) {
-  .stack-grid { grid-template-columns: 1fr; }
+  .skill-group--core .skill-list { grid-template-columns: 1fr; }
+}
+
+/* Reduced motion: no fade-up, no stagger — the finished list is just
+   there. script.js also skips setting the per-item delays in this mode,
+   so nothing arrives late. */
+@media (prefers-reduced-motion: reduce) {
+  .skill-group__head,
+  .skill-list li {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
 
 /* ============================================
