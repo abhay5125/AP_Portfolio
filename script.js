@@ -37,21 +37,20 @@ revealTargets.forEach(el => observer.observe(el));
 
 // Skills: staggered reveal.
 //
-// The skill groups are watched by the SAME observer as everything above,
+// The stack groups are watched by the SAME observer as everything above,
 // so they get the same "you've scrolled to this" signal — but they're
 // deliberately not given the shared .reveal class, because that fades a
-// whole block as one unit. Here each item should arrive just behind the
-// one before it, so the list assembles rather than appearing at once.
+// whole block as one unit. Here each tag should arrive just behind the
+// one before it, so the group assembles rather than appearing at once.
 //
 // The delays are set here rather than as nth-child rules in CSS because
-// the two lists are hand-edited — moving a skill between tiers would
-// silently break a hardcoded per-position delay, whereas this just
-// re-counts.
+// a hardcoded per-position delay would silently go stale the moment a
+// tag moved between groups, whereas this just re-counts.
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-document.querySelectorAll('.skill-group').forEach(group => {
+document.querySelectorAll('.stack-group').forEach(group => {
   if (!reduceMotion) {
-    group.querySelectorAll('.skill-list li').forEach((item, i) => {
+    group.querySelectorAll('.tags li').forEach((item, i) => {
       // Small head start so the group heading (delay 0) lands first.
       item.style.transitionDelay = (0.08 + i * 0.045) + 's';
     });

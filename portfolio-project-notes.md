@@ -417,6 +417,17 @@ Each heading carries a quiet mono note ("day to day" / "used where a project cal
 
 **To edit the lists:** they're plain `<li>` items in `index.html`. Move one between the two `<ul>`s and the styling follows automatically.
 
+### 25. Skills reverted back to the flat tag cloud
+
+Note 24 didn't stick — after testing it, the Core/Familiar grouping was reverted in favour of the original flat tag cloud (`.stack-grid` / `.stack-group` / `.tags`, six category groups: Languages, Platforms, Cloud, Business Intelligence, Software Delivery, DE Skills). Content is back to exactly what it was before note 24 (so "UC" and "and" rather than "Unity Catalog" and "&amp;", and the extra Python-library tags from that pass — Pandas, NumPy, Matplotlib, yfinance, Streamlit — are gone; they were never verified against the real project tags in the first place).
+
+What stayed, because it was independently worth keeping:
+- **`--ease-flight`** as a real token instead of a repeated magic-number `cubic-bezier`. The projects graph reveal still uses it.
+- **Staggered fade-up reveal.** The flat groups don't fade in as one block the way they used to — each `.tags li` gets a small per-item transition delay (set in `script.js`, same reasoning as before: hand-edited lists make a hardcoded nth-child delay fragile), heading first, then the tags behind it. Same IntersectionObserver, no pin, no lock.
+- The finalised Stage 5 palette — `.tags li` was already reading `--panel`/`--border` via variables, so it never needed touching.
+
+Net effect: same visual language and animation behaviour as the rest of the site, but the section reads as "here's what I've touched, grouped by category" again rather than "here's what I reach for, ranked by depth."
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 
