@@ -428,6 +428,28 @@ What stayed, because it was independently worth keeping:
 
 Net effect: same visual language and animation behaviour as the rest of the site, but the section reads as "here's what I've touched, grouped by category" again rather than "here's what I reach for, ranked by depth."
 
+### 26. Full audit pass
+
+Went through the whole site systematically rather than adding anything new. Findings and fixes:
+
+**Dead file removed:** `hero-animation.js` (246 lines) — nothing had referenced it since `site-particles.js` replaced it back at note 4; `index.html` never loads it. Deleted.
+
+**Two real no-JS bugs, fixed.** Both `.tags li`/`.stack-group h3` (skills) and `.pgraph__hint` (the "Hover a node…" line above the projects graph) are static markup in `index.html`, but were styled `opacity: 0` unconditionally, only flipped to `1` by a class that JavaScript adds. With JS disabled nothing ever adds that class, so both were stuck invisible forever — the skills section in particular would have been silently blank. Fixed by gating each behind a marker only JS ever adds (`.stagger-item` for skills, added in `script.js`; `body.has-node-graph` for the graph hint, already used for the same purpose elsewhere) — same principle the sitewide `.reveal` class already uses correctly for job cards and section titles, just not consistently applied to these two. Confirmed with `javaScriptEnabled: false` in Playwright: both now render at opacity 1 with no JS, and reduced-motion / normal-JS behaviour is unchanged.
+
+**Stale comments fixed:** two style.css comments still said "teal" (`.hero__role`, and the `.job--*` category-colour comment) for something that's actually `var(--accent)` — teal was dropped from the palette a while back but the prose never got updated. Also removed a `STAGE4-CHECK` freshness-check comment from the top of `index.html` that described a "Stage 4... particle-card sequence" state that no longer exists (the node graph replaced the particle-card sequence back at note 22); it wasn't referenced or explained anywhere else, so removed rather than rewritten.
+
+**`design-system.md`'s §3 (Color)** was still describing the pre-"Flight Recorder" palette wholesale — different hex values for `--ink`/`--panel`, a `--teal` token that doesn't exist any more, no `--purple`. That whole document predates `hero-architecture-spec.md` and was never fully implemented literally (its `--fs-*`/`--space-*` proposals aren't referenced anywhere in `style.css` either). Rather than rewriting the doc, added the same kind of amendment notice `hero-architecture-spec.md` already uses for its own superseded sections, pointing at the real token table and clarifying what `--amber`/`--purple` are actually used for now (job-card category markers only, not a sitewide narrative hue).
+
+**Confirmed clean, no fix needed:**
+- Every colour in `style.css` traces to a Flight Recorder token. The only two hardcoded hex values outside `:root` (`#1A0E08` and `#F5754D`, both in `.btn--primary`) are pre-existing, already-commented deliberate exceptions — near-black text for contrast on the accent button, and a lightened accent for its hover state — not leftovers from an old palette.
+- Reduced motion: verified the flow-field canvas draws nothing at all when `prefers-reduced-motion` is set (it returns early), the node-graph reveals fully-formed with no stagger/line-draw/pulse, and the skills stagger does the same. No flash-then-freeze, no partial states.
+- Mobile: the projects graph's horizontal-scroll fallback (`.pgraph__scroll`) genuinely works — 660px of SVG in a ~350px viewport, `overflow-x: auto`, scrolls and taps correctly. (My first pass at testing this queried the wrong element and looked broken; re-checked against the actual scrolling container and it isn't.)
+- `style.css?v=` cache-buster was already current (`v=13` after note 25) — bumped to `v=14` for this pass's own CSS edits.
+
+**Reported rather than changed — the altimeter question.** There is no flight-plan nav strip in the codebase at all, currently or in any prior commit — it only ever existed as a planning idea (`portfolio-project-notes.md`'s Concept 1 list, still marked "still to come" in note 8/9). The live nav (`.nav__brand` / `.nav__links` / `.nav__cta`) has no active-section highlighting or scroll-position indicator of any kind. So the altimeter idea can't currently duplicate anything — there's nothing built yet for it to duplicate. If the flight-plan strip gets built later with its own current-position marker, that's the point to revisit whether a separate altimeter is still worth adding, not before.
+
+**One minor polish gap noted, not changed:** the projects-graph hint text says "Hover a node to see what it shares with the others" — accurate on desktop, but the section is tap-driven on mobile (confirmed tapping opens the summary correctly) and there's no swipe/scroll affordance hinting that the diagram continues off-screen. Wording and any visual scroll-hint are content/design calls, flagging rather than changing unasked.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 

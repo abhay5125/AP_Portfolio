@@ -283,9 +283,9 @@ img, svg { display: block; max-width: 100%; }
                           glance rather than relying on inheritance */
 }
 
-/* Text element 2/3 — the role. Monospace and teal, deliberately styled
-   like the "// 0X_section" eyebrow labels used elsewhere on the site,
-   so it reads as a system label sitting just under the headline. */
+/* Text element 2/3 — the role. Monospace and accent-coloured, deliberately
+   styled like the "// 0X_section" eyebrow labels used elsewhere on the
+   site, so it reads as a system label sitting just under the headline. */
 .hero__role {
   font-family: var(--font-mono);
   font-weight: 500;
@@ -454,9 +454,9 @@ img, svg { display: block; max-width: 100%; }
 }
 
 /* Category color — same three-color system used across the site:
-   amber = aerospace-origin, teal = data engineering, purple = data
-   analysis/quant. This is the primary visual signal for what kind of
-   work a project is. */
+   amber = aerospace-origin, accent (orange) = data engineering, purple =
+   data analysis/quant. This is the primary visual signal for what kind
+   of work a project is. */
 .job--aerospace { border-left-color: var(--amber); }
 .job--engineering { border-left-color: var(--accent); }
 .job--analysis { border-left-color: var(--purple); }
@@ -573,8 +573,15 @@ img, svg { display: block; max-width: 100%; }
 
 /* ---- reveal ----
    Fades in the first time the graph scrolls into view. Each node carries
-   its own transition-delay, set in JS, which is what staggers them. */
-.pgraph__hint {
+   its own transition-delay, set in JS, which is what staggers them.
+
+   Gated behind body.has-node-graph (added by projects-graph.js as soon
+   as it runs — same convention the particle system uses, see below)
+   rather than applying to .pgraph__hint unconditionally: that element is
+   static markup in index.html, so without that gate a visitor with
+   JavaScript disabled would see it stuck at opacity: 0 forever, since
+   there'd be no script left to ever add .is-revealed. */
+body.has-node-graph .pgraph__hint {
   opacity: 0;
   transition: opacity 0.5s ease;
 }
@@ -897,16 +904,21 @@ body.has-node-graph .jobs { display: none; }
 }
 
 /* ---- staggered reveal ----
+   .stagger-item is added by script.js, not present in the markup itself
+   — same gating principle as the sitewide .reveal class (see "reveal-on-
+   scroll" above). Without that class nothing here goes opacity:0, so a
+   visitor with JavaScript disabled just sees the finished tag cloud;
+   without this gate every tag would be permanently invisible, since the
+   IntersectionObserver that adds .is-visible would never run.
+
    Per-item delays are set in script.js rather than nth-child CSS, so a
    tag can move between groups without a hardcoded delay going stale. */
-.stack-group h3,
-.tags li {
+.stagger-item {
   opacity: 0;
   transform: translateY(10px);
   transition: opacity 0.55s var(--ease-flight), transform 0.55s var(--ease-flight);
 }
-.stack-group.is-visible h3,
-.stack-group.is-visible .tags li {
+.stack-group.is-visible .stagger-item {
   opacity: 1;
   transform: translateY(0);
 }
@@ -919,8 +931,7 @@ body.has-node-graph .jobs { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stack-group h3,
-  .tags li {
+  .stagger-item {
     opacity: 1;
     transform: none;
     transition: none;
