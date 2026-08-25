@@ -20,6 +20,7 @@
   --ink: #121212;
   --panel: #1B1B1A;
   --panel-alt: #201D19;
+  --panel-raised: #26221F; /* node faces — one step brighter again, see PROJECTS block */
   --border: #2E2E2C;
   --line: #191917; /* background grid overlay — subtle, just above --ink */
 
@@ -533,12 +534,12 @@ img, svg { display: block; max-width: 100%; }
    (see projects-graph.js; concept locked in
    portfolio-project-notes.md entry 10)
 
-   Colour discipline, deliberately strict: nodes are NEUTRAL by default
-   (--steel / --bone). Projects are told apart by their icon, not by
-   colour — the icon already carries identity, so colour doesn't need to
-   do that job twice. --accent shows up ONLY on whatever is currently
-   active: the hovered/focused node, its halo, its connected edges, and
-   text inside an expanded summary. Nothing else here uses it.
+   Colour discipline, deliberately strict: nodes are NEUTRAL. They get
+   their presence from LIGHTNESS (a brighter face, a steel rim, a bone
+   glyph), never from hue — which is what leaves --accent free to mean
+   "this is the thing you're looking at right now". Orange appears only
+   on the active node, its halo, its connected edges, and labels inside
+   an open summary. Nothing else in this section touches it.
    ============================================ */
 
 .pgraph {
@@ -553,6 +554,11 @@ img, svg { display: block; max-width: 100%; }
   margin-bottom: 0.75rem;
 }
 
+/* On a phone the graph would otherwise scale down until the nodes were
+   too small to tap. Below a certain width it keeps a usable minimum size
+   and scrolls sideways instead. */
+.pgraph__scroll { overflow-x: auto; overflow-y: hidden; }
+
 .pgraph__svg {
   width: 100%;
   height: auto;
@@ -560,9 +566,8 @@ img, svg { display: block; max-width: 100%; }
 }
 
 /* ---- reveal ----
-   The graph starts hidden and animates in the first time it scrolls into
-   view (projects-graph.js adds .is-revealed). Each node carries its own
-   transition-delay, set in JS, which is what staggers them. */
+   Fades in the first time the graph scrolls into view. Each node carries
+   its own transition-delay, set in JS, which is what staggers them. */
 .pgraph__hint {
   opacity: 0;
   transition: opacity 0.5s ease;
@@ -585,32 +590,49 @@ img, svg { display: block; max-width: 100%; }
   transform: translateY(0);
 }
 
-/* Edges draw themselves in: the dash offset is set to the line's own
-   length in JS, so the line starts entirely "pushed out of view", then
-   animates back to 0 and appears to grow from one end to the other. */
+/* Edges draw themselves in: the dash offset starts at the line's own
+   length (set in JS), so the line begins entirely pushed out of view and
+   animates back to 0, appearing to grow from one end to the other.
+   stroke-width is also set per-edge in JS — thicker means the two
+   projects share more. */
 .pgraph__edge-line {
-  stroke: var(--border);
-  stroke-width: 1.5;
-  transition: stroke-dashoffset 0.9s ease, stroke 0.25s ease, stroke-width 0.25s ease;
+  fill: none; /* these are <path> curves, not lines — without this they'd fill solid */
+  stroke: var(--steel);
+  transition: stroke-dashoffset 0.9s ease, stroke 0.25s ease, opacity 0.25s ease;
+  opacity: 0.55;
 }
 .pgraph.is-revealed .pgraph__edge-line { stroke-dashoffset: 0 !important; }
 
 /* ---- nodes ---- */
 .pgraph__node { cursor: pointer; }
 .pgraph__node:focus { outline: none; } /* replaced by the halo treatment below */
-.pgraph__node:focus-visible .pgraph__disc { stroke: var(--bone); }
 
 .pgraph__disc {
-  fill: var(--panel-alt);
-  stroke: var(--border);
+  fill: var(--panel-raised);
+  stroke: var(--steel);
   stroke-width: 1.5;
-  transition: fill 0.25s ease, stroke 0.25s ease;
+  transition: fill 0.25s ease, stroke 0.25s ease, stroke-width 0.25s ease;
 }
 
-.pgraph__icon circle {
-  fill: var(--steel);
-  transition: fill 0.25s ease;
+/* The glyph is a small readout of what the project produced, not a
+   pictorial icon — see the GLYPHS block in projects-graph.js for what
+   each one is showing. Strokes by default; the few filled parts (the
+   Medallion bars, the satellite body) opt in via data-fill. */
+.pgraph__glyph { pointer-events: none; }
+.pgraph__glyph * {
+  fill: none;
+  stroke: var(--bone);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.25s ease, fill 0.25s ease, opacity 0.25s ease;
 }
+.pgraph__glyph [data-fill] {
+  fill: var(--bone);
+  stroke: none;
+}
+/* The moving-average line sits behind the price line it smooths. */
+.pgraph__glyph [data-soft] { opacity: 0.5; }
 
 .pgraph__label {
   font-family: var(--font-mono);
@@ -619,26 +641,46 @@ img, svg { display: block; max-width: 100%; }
   fill: var(--text-muted);
   text-anchor: middle;
   transition: fill 0.25s ease;
+  pointer-events: none;
 }
 
-/* The halo: a second, larger circle at low opacity sitting behind the
-   node. Same technique used for the glow elsewhere on the site, and
-   deliberately NOT a blur filter — a plain extra circle is cheaper and
-   keeps a cleaner edge. Invisible until the node is active. */
+/* The halo: a second, larger circle at low opacity behind the node. Same
+   glow technique used elsewhere on the site, and deliberately NOT a blur
+   filter — a plain extra circle is cheaper and holds a cleaner edge.
+
+   Faintly present at rest in neutral steel, then the SAME circle warms
+   to accent and strengthens when active. Hovering therefore reads as
+   something already there getting hotter, not a new object appearing. */
 .pgraph__halo {
+  fill: var(--steel);
+  opacity: 0.10;
+  transition: opacity 0.25s ease, fill 0.25s ease;
+  pointer-events: none;
+}
+
+/* ---- what each edge actually shares ----
+   Hidden until its edge is highlighted. This is what makes the graph
+   informative rather than decorative — you can see WHY two projects are
+   linked without opening either one. */
+.pgraph__edge-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
   fill: var(--accent);
+  text-anchor: middle;
   opacity: 0;
   transition: opacity 0.25s ease;
   pointer-events: none;
 }
+.pgraph__edge.is-connected .pgraph__edge-label { opacity: 1; }
 
 /* ---- highlight state ---- */
-/* Depth of field: everything that isn't the active node or one of its
+/* Depth of field: anything that isn't the active node or one of its
    direct neighbours dims and softly blurs, so attention lands on the
    active cluster. Pure CSS filter, no canvas involved. */
 .pgraph__svg.is-highlighting .pgraph__node:not(.is-active):not(.is-neighbour),
 .pgraph__svg.is-highlighting .pgraph__edge:not(.is-connected) {
-  opacity: 0.35;
+  opacity: 0.3;
   filter: blur(1.6px);
 }
 .pgraph__node,
@@ -646,40 +688,49 @@ img, svg { display: block; max-width: 100%; }
   transition: opacity 0.3s ease, filter 0.3s ease;
 }
 
-/* Active node: near-white core with an accent halo. */
-.pgraph__node.is-active .pgraph__halo { opacity: 0.22; }
+/* Active node: brightest face, accent rim, accent halo, near-white glyph. */
+.pgraph__node.is-active .pgraph__halo { fill: var(--accent); opacity: 0.24; }
 .pgraph__node.is-active .pgraph__disc {
-  fill: var(--panel-alt);
   stroke: var(--accent);
   stroke-width: 2;
 }
-.pgraph__node.is-active .pgraph__icon circle { fill: var(--text); }
+.pgraph__node.is-active .pgraph__glyph * { stroke: var(--text); }
+.pgraph__node.is-active .pgraph__glyph [data-fill] { fill: var(--text); stroke: none; }
 .pgraph__node.is-active .pgraph__label { fill: var(--accent); }
 
-/* Neighbours stay sharp and brighten slightly, but keep neutral colour —
-   they're context for the active node, not co-stars. */
-.pgraph__node.is-neighbour .pgraph__icon circle { fill: var(--bone); }
-.pgraph__node.is-neighbour .pgraph__disc { stroke: var(--steel); }
+/* Neighbours stay sharp and lift slightly, but stay neutral — they're
+   context for the active node, not co-stars. */
+.pgraph__node.is-neighbour .pgraph__disc { stroke: var(--bone); }
+.pgraph__node.is-neighbour .pgraph__label { fill: var(--bone); }
 
-/* A node whose summary is currently open keeps a quiet marker even after
-   the pointer leaves. */
+/* A node whose summary is open keeps a quiet marker after the pointer
+   leaves, so you can see what you're reading about. */
 .pgraph__node.is-open .pgraph__disc { stroke: var(--accent); }
+.pgraph__node.is-open .pgraph__halo { fill: var(--accent); opacity: 0.14; }
+
+/* Keyboard focus needs to be obvious on its own terms, not only via the
+   hover styling it happens to share. */
+.pgraph__node:focus-visible .pgraph__disc {
+  stroke: var(--text);
+  stroke-width: 2.5;
+}
 
 .pgraph__edge.is-connected .pgraph__edge-line {
   stroke: var(--accent);
-  stroke-width: 2;
+  opacity: 1;
 }
 
 /* ---- the pulse ----
-   A short dash on a duplicate line, slid from one end to the other once,
-   when an edge becomes newly highlighted. Reads as a single deliberate
-   packet of data moving along the connection, without needing a particle
-   system to do it. */
+   A short dash on a duplicate line, slid end to end once when an edge
+   becomes newly highlighted. Reads as a single deliberate packet of data
+   moving along the connection, without needing a particle system. */
 .pgraph__edge-pulse {
+  fill: none;
   stroke: var(--text);
   stroke-width: 3;
   stroke-linecap: round;
   opacity: 0;
+  pointer-events: none;
 }
 .pgraph__edge-pulse.is-pulsing {
   animation: pgraph-pulse 0.75s ease-out 1;
@@ -784,6 +835,11 @@ body.has-node-graph .jobs { display: none; }
 
 @media (max-width: 780px) {
   .psummary { padding: 1.25rem; }
+}
+@media (max-width: 700px) {
+  /* Keep nodes big enough to hit with a thumb; scroll sideways instead
+     of shrinking the whole diagram into unusability. */
+  .pgraph__svg { min-width: 660px; }
 }
 
 /* Reduced motion: no staggered reveal, no line-drawing, no pulse — the

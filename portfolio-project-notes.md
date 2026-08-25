@@ -378,6 +378,27 @@ Worth knowing there's a near-miss sitting right there: JOB-01 is tagged "Quantit
 
 **One open question worth a look:** the icons reuse the existing particle-icon dot patterns, so the graph and the hero share a visual language. At node size they're small dot clusters and don't obviously read as "bee / chart / scooter / car / satellite". Whether that matters is a design call — if identity needs to be clearer, proper drawn line icons would do it at the cost of that shared language.
 
+### 23. Node graph refined — glyphs, real connections, contrast, naming
+
+Four things fixed after reviewing the first version.
+
+**Icons -> data-signature glyphs.** The dot-cloud icons were reused from the particle system and didn't survive being shrunk to node size — eight scattered dots can't describe a scooter. Rather than swapping in stock line icons, each node now shows a small chart of what that project actually produced: a peak efficiency curve (MAV), a volatile price line with its moving average (trading), three ascending Medallion tiers (delivery), a tyre-degradation decay curve (F1), an orbit (satellite). Distinctive, informative, and a continuous line reads far better at 40px than scattered points.
+
+**Connections: 1 edge -> 5.** The real diagnosis was that the graph wasn't sparse because the projects are unrelated — the tag data was under-reported and inconsistently grained. Two honest corrections: delivery now lists Python and Power BI (the Databricks/Spark work was PySpark, the reporting layer was Power BI — both were just missing), and MAV's "Quantitative Engineering Analysis" collapsed to "Quantitative Analysis", the same skill trading and F1 already had. Tags are now two-tier — specific `tools` plus a shared `capabilities` vocabulary — and edge thickness scales with how much two projects share, so trading<->F1 (5 shared) reads visibly stronger than the single-tag links.
+
+One rule worth remembering: a tag shared by *every* project carries no information. "Data Visualisation" is true of all four, so including it would connect everything to everything — the opposite failure to the one-edge version. Anything present in 80%+ of projects is excluded from edge matching. It still shows in a project's summary; it just isn't a distinguishing link.
+
+**Node contrast.** Principle applied: presence comes from *lightness*, not hue. Nodes got a brighter face (`--panel-raised`), a steel rim instead of a barely-there border, a bone glyph, and a faint resting halo. That halo is the same circle that warms to orange on hover, so activating a node reads as something already there getting hotter rather than a new object appearing. Orange stays the only hue anywhere in the section.
+
+**Naming.** `JOB-01` was generic and wasted an opportunity — when category colour-coding was dropped, the domain signal went with it. Now `AERO-01 / QUANT-01 / PIPE-01 / QUANT-02 / AERO-02`, which fits the telemetry voice and puts category back as text instead of colour.
+
+**Judgement calls made without asking:**
+- **Edges are curved, not straight.** Straight lines inevitably graze nodes they have nothing to do with — AERO-01's link to QUANT-02 ran right along QUANT-01's edge and looked like it terminated there. Bowing each edge clears whatever it passes and reads more like a flow diagram.
+- **Shared-tag labels on highlighted edges** — you can now see *why* two projects are linked without opening either.
+- **Mobile:** the graph kept shrinking until nodes were too small to tap, so below 700px it holds a usable minimum size and scrolls sideways instead.
+- **Escape / click-away closes the summary**, and opening one scrolls it into view if it landed below the fold.
+- Fallback `.jobs` cards updated to the same corrected tags and IDs, so both versions tell the same story.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 
