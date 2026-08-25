@@ -360,6 +360,24 @@ Went through the spec's performance checklist item by item. Two real problems tu
 
 **Status: all six stages built.** Colour, motion, scroll-tied intensity, interactions, palette, hardening - done.
 
+### 22. Projects rebuilt as a node graph
+
+Replaced the pinned particle-card sequence with the SVG node graph from concepts option 1. Five nodes, one per project, normal document scroll — the old projects pin is gone, so nothing on the site scroll-jacks any more.
+
+**Colour:** nodes are neutral (steel/bone), projects told apart by their icon only. The orange accent shows up on exactly one thing at a time — the hovered/focused node, its halo, its connected edge, and the text labels inside an open summary. Nothing else in the section touches it.
+
+**Edges are computed, not drawn by hand.** Every pair of projects gets checked for tools they genuinely share, using exact string matching. The honest result: **one edge** (JOB-02 and JOB-04 both use Python, Pandas, NumPy) and three nodes with no connections at all.
+
+Worth knowing there's a near-miss sitting right there: JOB-01 is tagged "Quantitative Engineering Analysis" and JOB-02 is tagged "Quantitative Analysis". Those are arguably the same skill, but as different strings they don't match, so no edge. Renaming one to match the other would create a real second edge with no fudging of the logic. Left alone deliberately — changing the tag is a content decision, not something to quietly do inside the matching code.
+
+**Two bugs hit and fixed while building:**
+- All five nodes stacked on top of each other. Cause: a CSS `transform` on an SVG element *replaces* its `transform="translate(x,y)"` positioning attribute rather than adding to it, so the reveal animation was throwing every node's position away. Fixed by putting position on an outer group and animation on an inner one so they can't compete.
+- Removing the old projects pin broke the hero's project-proximity glow, which was keyed to the pinned card. Repointed it at the projects section instead.
+
+**Also cleaned up:** the projects card sequence being gone made a big chunk of site-particles.js dead (project data, icons, card drawing, the scroll trigger, the shared particle pool split). Removed it — that file is ~340 lines lighter.
+
+**One open question worth a look:** the icons reuse the existing particle-icon dot patterns, so the graph and the hero share a visual language. At node size they're small dot clusters and don't obviously read as "bee / chart / scooter / car / satellite". Whether that matters is a design call — if identity needs to be clearer, proper drawn line icons would do it at the cost of that shared language.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 
