@@ -335,13 +335,6 @@ img, svg { display: block; max-width: 100%; }
 }
 .btn--ghost:hover { border-color: var(--accent); color: var(--accent); }
 
-/* Projects: .jobs is the static fallback grid, .project-stage is the
-   single card that gets repopulated as particles cycle through each
-   project. Only one of the two is ever visible. Unrelated to the hero
-   rebuild above — left exactly as it was. */
-body.has-particle-system .jobs { display: none; }
-body.has-particle-system .project-stage { display: block; }
-body.has-particle-system .projects-progress { display: flex; }
 
 /* ============================================
    SECTIONS (shared)
@@ -535,110 +528,234 @@ body.has-particle-system .projects-progress { display: flex; }
   .jobs { grid-template-columns: 1fr; }
 }
 
-/* ---- projects progress dots ---- */
-.projects-progress {
-  display: none; /* shown only once body.has-particle-system is set */
-  gap: 0.6rem;
-  margin-bottom: 1.5rem;
-}
-.progress-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1px solid var(--text-muted);
-  transition: background 0.3s ease, border-color 0.3s ease;
-}
-.progress-dot.is-active {
-  background: var(--accent);
-  border-color: var(--accent);
+/* ============================================
+   PROJECTS — NODE GRAPH
+   (see projects-graph.js; concept locked in
+   portfolio-project-notes.md entry 10)
+
+   Colour discipline, deliberately strict: nodes are NEUTRAL by default
+   (--steel / --bone). Projects are told apart by their icon, not by
+   colour — the icon already carries identity, so colour doesn't need to
+   do that job twice. --accent shows up ONLY on whatever is currently
+   active: the hovered/focused node, its halo, its connected edges, and
+   text inside an expanded summary. Nothing else here uses it.
+   ============================================ */
+
+.pgraph {
+  position: relative;
+  margin: 2.5rem 0 1.5rem;
 }
 
-/* ---- project particle-stage card ----
-   One fixed card frame; its content gets swapped by site-particles.js as
-   the user scrolls through each project. Text styling intentionally
-   mirrors .job so the fallback and animated versions feel identical. */
-.project-stage {
-  display: none; /* shown only once body.has-particle-system is set */
-  max-width: 640px;
-  max-height: min(58vh, 480px); /* always fit within the pinned viewport */
-  overflow-y: auto;
-  min-height: 320px;
-  background: var(--panel-alt, var(--panel));
+.pgraph__hint {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.pgraph__svg {
+  width: 100%;
+  height: auto;
+  overflow: visible; /* haloes extend past node edges */
+}
+
+/* ---- reveal ----
+   The graph starts hidden and animates in the first time it scrolls into
+   view (projects-graph.js adds .is-revealed). Each node carries its own
+   transition-delay, set in JS, which is what staggers them. */
+.pgraph__hint {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.pgraph.is-revealed .pgraph__hint { opacity: 1; }
+
+/* The reveal is applied to .pgraph__rise, an inner group, NOT to
+   .pgraph__node itself. The node carries its position as an SVG
+   transform attribute, and a CSS transform on the same element replaces
+   that attribute rather than adding to it — animating the node directly
+   throws its position away and stacks every node in one spot. Splitting
+   position (outer) from animation (inner) keeps them from competing. */
+.pgraph__rise {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pgraph.is-revealed .pgraph__rise {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Edges draw themselves in: the dash offset is set to the line's own
+   length in JS, so the line starts entirely "pushed out of view", then
+   animates back to 0 and appears to grow from one end to the other. */
+.pgraph__edge-line {
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: stroke-dashoffset 0.9s ease, stroke 0.25s ease, stroke-width 0.25s ease;
+}
+.pgraph.is-revealed .pgraph__edge-line { stroke-dashoffset: 0 !important; }
+
+/* ---- nodes ---- */
+.pgraph__node { cursor: pointer; }
+.pgraph__node:focus { outline: none; } /* replaced by the halo treatment below */
+.pgraph__node:focus-visible .pgraph__disc { stroke: var(--bone); }
+
+.pgraph__disc {
+  fill: var(--panel-alt);
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: fill 0.25s ease, stroke 0.25s ease;
+}
+
+.pgraph__icon circle {
+  fill: var(--steel);
+  transition: fill 0.25s ease;
+}
+
+.pgraph__label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  fill: var(--text-muted);
+  text-anchor: middle;
+  transition: fill 0.25s ease;
+}
+
+/* The halo: a second, larger circle at low opacity sitting behind the
+   node. Same technique used for the glow elsewhere on the site, and
+   deliberately NOT a blur filter — a plain extra circle is cheaper and
+   keeps a cleaner edge. Invisible until the node is active. */
+.pgraph__halo {
+  fill: var(--accent);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+/* ---- highlight state ---- */
+/* Depth of field: everything that isn't the active node or one of its
+   direct neighbours dims and softly blurs, so attention lands on the
+   active cluster. Pure CSS filter, no canvas involved. */
+.pgraph__svg.is-highlighting .pgraph__node:not(.is-active):not(.is-neighbour),
+.pgraph__svg.is-highlighting .pgraph__edge:not(.is-connected) {
+  opacity: 0.35;
+  filter: blur(1.6px);
+}
+.pgraph__node,
+.pgraph__edge {
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+/* Active node: near-white core with an accent halo. */
+.pgraph__node.is-active .pgraph__halo { opacity: 0.22; }
+.pgraph__node.is-active .pgraph__disc {
+  fill: var(--panel-alt);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.pgraph__node.is-active .pgraph__icon circle { fill: var(--text); }
+.pgraph__node.is-active .pgraph__label { fill: var(--accent); }
+
+/* Neighbours stay sharp and brighten slightly, but keep neutral colour —
+   they're context for the active node, not co-stars. */
+.pgraph__node.is-neighbour .pgraph__icon circle { fill: var(--bone); }
+.pgraph__node.is-neighbour .pgraph__disc { stroke: var(--steel); }
+
+/* A node whose summary is currently open keeps a quiet marker even after
+   the pointer leaves. */
+.pgraph__node.is-open .pgraph__disc { stroke: var(--accent); }
+
+.pgraph__edge.is-connected .pgraph__edge-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+/* ---- the pulse ----
+   A short dash on a duplicate line, slid from one end to the other once,
+   when an edge becomes newly highlighted. Reads as a single deliberate
+   packet of data moving along the connection, without needing a particle
+   system to do it. */
+.pgraph__edge-pulse {
+  stroke: var(--text);
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0;
+}
+.pgraph__edge-pulse.is-pulsing {
+  animation: pgraph-pulse 0.75s ease-out 1;
+}
+@keyframes pgraph-pulse {
+  from { stroke-dashoffset: var(--pulse-len, 400); opacity: 0; }
+  15%  { opacity: 0.95; }
+  85%  { opacity: 0.95; }
+  to   { stroke-dashoffset: -8; opacity: 0; }
+}
+
+/* ---- inline summary ---- */
+.psummary {
+  display: none;
+  background: var(--panel);
+  border-left: 3px solid var(--accent);
   border-radius: 12px 12px 12px 2px;
-  padding: 2rem;
-  border-left: 3px solid var(--border);
-  transition: border-left-color 0.4s ease;
+  padding: 1.75rem;
+  max-width: 62ch;
 }
+.psummary.is-open { display: block; }
 
-/* Less vertical space spent on section furniture while the pinned card
-   sequence is running — the eyebrow/heading/intro don't need as much
-   breathing room here as a normal static section does, and reclaiming
-   that space is what keeps the card from being pushed below the fold. */
-body.has-particle-system #projects {
-  padding-top: 2rem;
-  padding-bottom: 2rem;
-}
-body.has-particle-system #projects .section__intro {
-  margin-bottom: 1rem;
-}
-body.has-particle-system #projects .projects-progress {
-  margin-bottom: 1rem;
-}
-.project-stage[data-category="aerospace"] { border-left-color: var(--amber); }
-.project-stage[data-category="engineering"] { border-left-color: var(--accent); }
-.project-stage[data-category="analysis"] { border-left-color: var(--purple); }
-
-.project-stage__head {
+.psummary__head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 0.9rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  margin-bottom: 0.85rem;
 }
-.project-stage__id {
+.psummary__id {
   font-family: var(--font-mono);
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--accent);
+  letter-spacing: 0.06em;
 }
-.project-stage__category {
+.psummary__category {
   font-family: var(--font-mono);
   font-size: 0.72rem;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
   padding: 0.25rem 0.6rem;
   border-radius: 20px 20px 20px 2px;
-  border: 1px solid currentColor;
 }
-.project-stage[data-category="aerospace"] .project-stage__category { color: var(--amber); }
-.project-stage[data-category="engineering"] .project-stage__category { color: var(--accent); }
-.project-stage[data-category="analysis"] .project-stage__category { color: var(--purple); }
 
-.project-stage__title {
+.psummary__title {
   font-family: var(--font-display);
-  font-size: 1.3rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  margin-bottom: 0.7rem;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.project-stage__desc {
-  color: var(--text-muted);
-  font-size: 0.95rem;
   margin-bottom: 1.1rem;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s;
 }
-.project-stage__stack {
+
+.psummary__row { margin-bottom: 1rem; }
+.psummary__label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+}
+.psummary__text { color: var(--text-muted); font-size: 0.95rem; }
+.psummary__status {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--bone);
+}
+
+.psummary__tools {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 1.1rem;
   list-style: none;
-  opacity: 0;
-  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
 }
-.project-stage__stack li {
+.psummary__tools li {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
@@ -646,23 +763,41 @@ body.has-particle-system #projects .projects-progress {
   padding: 0.25rem 0.55rem;
   border-radius: 5px;
 }
-.project-stage__links {
-  display: flex;
-  gap: 1.2rem;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  opacity: 0;
-  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
-}
-.project-stage__links a { color: var(--accent); }
-.project-stage__links a:hover { text-decoration: underline; }
 
-.project-stage.is-content-visible .project-stage__title,
-.project-stage.is-content-visible .project-stage__desc,
-.project-stage.is-content-visible .project-stage__stack,
-.project-stage.is-content-visible .project-stage__links {
-  opacity: 1;
-  transform: translateY(0);
+.psummary__cta { margin-top: 0.5rem; }
+
+/* Satellite project — confirmed for the graph, write-up not done yet. */
+.psummary__coming {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--bone);
+  margin-bottom: 0.4rem;
+}
+.psummary__coming-note {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Once the graph is live, the plain card grid is redundant — it only
+   exists as the no-JavaScript fallback. */
+body.has-node-graph .jobs { display: none; }
+
+@media (max-width: 780px) {
+  .psummary { padding: 1.25rem; }
+}
+
+/* Reduced motion: no staggered reveal, no line-drawing, no pulse — the
+   finished graph just appears. (projects-graph.js also skips firing
+   pulses entirely in this mode; this is the CSS half of the same rule.) */
+@media (prefers-reduced-motion: reduce) {
+  .pgraph__hint { opacity: 1; transition: none; }
+  .pgraph__rise {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .pgraph__edge-line { stroke-dashoffset: 0 !important; transition: none; }
+  .pgraph__edge-pulse.is-pulsing { animation: none; }
 }
 
 /* ============================================

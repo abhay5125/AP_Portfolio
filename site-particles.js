@@ -2,7 +2,7 @@
 //
 // One fixed <canvas> (#siteParticles, see .site-particles in style.css),
 // drawn in viewport coordinates the whole time — it never scrolls with
-// the page. Three independent things share it:
+// the page. Two independent things share it:
 //
 //   1. HERO FLOW — see the big comment block further down for the full
 //      story. Short version: a pool of particles that drift around like
@@ -13,13 +13,13 @@
 //      the top of that file (the original pinned/lane-based plan
 //      further down that doc was tried, looked worse, and got dropped —
 //      the amendment is the real plan now).
-//   2. PROJECTS — a separate pool of particles that assembles into each
-//      project's card outline + signature icon as you scroll through the
-//      projects section. Built earlier, unrelated to the hero flow, not
-//      touched by any of this — including its own scroll-pin, which
-//      predates this rebuild and stays exactly as it was.
-//   3. AMBIENT — a small pool that just drifts gently in the background
-//      everywhere on the page, whenever it isn't needed for #2.
+//   2. AMBIENT — a small pool that just drifts gently in the background
+//      everywhere on the page.
+//
+// There used to be a third: a pool that assembled into each project's
+// card outline as you scrolled through a PINNED projects section. That's
+// gone — projects are a plain-scrolling SVG node graph now (see
+// projects-graph.js), and nothing on the site pins any more.
 //
 // Each hero particle draws its own short trail from its own remembered
 // recent positions, then the canvas gets a full, proper clear every
@@ -48,25 +48,16 @@
   var ctx = canvas.getContext('2d');
   var navEl = document.querySelector('.nav');
   var projectsSection = document.querySelector('#projects');
-  var projectStageEl = document.getElementById('projectStage');
   var footerLogEl = document.querySelector('.footer__log');
   var heroTextEl = document.querySelector('.hero__content');
-
-  var stageIdEl = document.getElementById('stageId');
-  var stageCategoryEl = document.getElementById('stageCategory');
-  var stageTitleEl = document.getElementById('stageTitle');
-  var stageDescEl = document.getElementById('stageDesc');
-  var stageStackEl = document.getElementById('stageStack');
-  var stageLinksEl = document.getElementById('stageLinks');
-  var progressDots = document.querySelectorAll('.progress-dot');
 
   // ---- device capability check — fewer particles on weaker devices ----
   var isLowPower =
     (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
     window.innerWidth < 700;
-  var FRAME_COUNT = isLowPower ? 90 : 160;
-  var AMBIENT_COUNT = isLowPower ? 30 : 60;
-  var TOTAL_COUNT = FRAME_COUNT + AMBIENT_COUNT;
+  // Background drifting particles (separate from the hero flow field,
+  // which has its own budget further down).
+  var AMBIENT_COUNT = isLowPower ? 120 : 220;
 
   // ---- design tokens, read from CSS so colors stay in sync with style.css ----
   function hexToRgb(hex) {
@@ -98,8 +89,6 @@
   function lerp(a, b, t) {
     return a + (b - a) * t;
   }
-
-  var easeInOut = gsap.parseEase('power2.inOut');
 
   // =====================================================================
   // HERO — flow field particles (Stages 2 + 3)
@@ -134,7 +123,7 @@
 
   // Budget from the spec's "Performance constraints": ~250 particles on
   // desktop, ~100 on lower-power devices/small screens (isLowPower is
-  // computed above, next to FRAME_COUNT/AMBIENT_COUNT).
+  // computed above, next to AMBIENT_COUNT).
   var HERO_PARTICLE_COUNT = isLowPower ? 100 : 250;
   var heroParticles = [];
 
@@ -303,21 +292,23 @@
     // ---- PROJECT-PROXIMITY EFFECT SETUP ----
     // The ONLY section-specific behaviour in the whole system, per the
     // spec. Worked out once per frame (not per particle) from
-    // projectStageRect, a plain cached object — see cacheProjectStageRect()
-    // above draw(). No DOM read happens here at all any more.
-    // Stage 5 note: this glow always tints toward --accent now, not a
-    // per-category hue — --accent is "the one striking colour" in the
-    // finalised palette, so the project-proximity moment is exactly
-    // where it gets spent, rather than splitting it three ways.
+    // projectsBox, a plain cached object — see cacheProjectsBox() above
+    // draw(). No DOM read happens here at all.
+    //
+    // This used to key off the old pinned project card. That card is gone
+    // (the projects section is a node graph now, and nothing on the site
+    // pins any more), so it keys off the projects SECTION instead — same
+    // effect, just anchored to something that still exists.
+    //
+    // The glow always tints toward --accent, not a per-category hue —
+    // --accent is "the one striking colour" in the finalised palette, so
+    // this is exactly where it gets spent rather than being split up.
     var projectGlowActive = false, projectCx = 0, projectCy = 0, projectRadius = 0;
-    if (currentProjectIndex >= 0 && projectStageRect) {
-      var stageRect = projectStageRect;
-      if (stageRect.width > 0) {
-        projectCx = stageRect.left + stageRect.width / 2;
-        projectCy = stageRect.top + stageRect.height / 2;
-        projectRadius = Math.max(stageRect.width, stageRect.height) / 2 + HERO_PROJECT_EFFECT_RADIUS;
-        projectGlowActive = true;
-      }
+    if (projectsBox) {
+      projectCx = projectsBox.cx;
+      projectCy = projectsBox.docCy - window.scrollY; // document position -> on-screen position
+      projectRadius = projectsBox.radius + HERO_PROJECT_EFFECT_RADIUS;
+      projectGlowActive = true;
     }
 
     for (var i = 0; i < heroParticles.length; i++) {
@@ -532,82 +523,12 @@
   }
 
   // =====================================================================
-  // PROJECTS — content + per-project signature icon (normalized local points)
-  // =====================================================================
-  var PROJECTS = [
-    {
-      id: 'JOB-01', lifecycle: 'live', category: 'aerospace', categoryLabel: 'Aerospace Analysis',
-      title: 'DC micro-motor selection for the design of a Biologically-Inspired Flapping-Wing MAV',
-      desc: 'Developed a computational model in MATLAB to generate and analyse performance data for flapping-wing Micro Aerial Vehicles. Conducted quantitative analysis across multiple actuator parameters, identifying trends and relationships between mass, power, frequency and efficiency to evaluate system performance and design trade-offs.',
-      stack: ['MATLAB', 'Computational Modelling', 'Quantitative Engineering Analysis'],
-      links: [{ label: 'Repo ↗', href: '#' }, { label: 'Write-up ↗', href: '#' }],
-      icon: 'insect'
-    },
-    {
-      id: 'JOB-02', lifecycle: 'live', category: 'analysis', categoryLabel: 'Data Analysis',
-      title: 'Quantitative Trading Strategy Backtesting',
-      desc: 'Analysed historical financial data using Python and Pandas to develop and backtest quantitative trading strategies. Engineered technical indicators including moving averages and Bollinger Bands, evaluating historical performance and identifying patterns and trading signals through data analysis and visualisation.',
-      stack: ['Python', 'Pandas', 'NumPy', 'yfinance', 'Matplotlib', 'Quantitative Analysis'],
-      links: [{ label: 'Repo ↗', href: '#' }, { label: 'Write-up ↗', href: '#' }],
-      icon: 'chart'
-    },
-    {
-      id: 'JOB-03', lifecycle: 'in progress', category: 'engineering', categoryLabel: 'Data Engineering',
-      title: 'NYC Delivery Service - End-to-End Data Engineering',
-      desc: 'Built an end-to-end data analytics solution using Databricks and Power BI, transforming restaurant delivery data through a Medallion Architecture. Analysed sales trends and external factors including weather, public holidays and major sporting events to identify patterns in customer demand and support data-driven business decisions.',
-      stack: ['Databricks', 'Apache Spark', 'Microsoft Azure', 'ETL'],
-      links: [{ label: 'Repo ↗', href: '#' }],
-      icon: 'scooter'
-    },
-    {
-      id: 'JOB-04', lifecycle: 'archived', category: 'analysis', categoryLabel: 'Data Analysis',
-      title: 'Formula 1 Performance Analysis',
-      desc: 'Collected and analysed Formula 1 race data using the FastF1 API, developing analysis to calculate tyre degradation across compounds and race stints. Analysed lap-time trends and driver performance, presenting findings through an interactive Streamlit dashboard.',
-      stack: ['Python', 'Pandas', 'NumPy', 'API', 'Streamlit'],
-      links: [{ label: 'Write-up ↗', href: '#' }],
-      icon: 'car'
-    }
-  ];
-
-  // Each icon is a set of local points (small coordinate space, roughly
-  // 0-90 x, 0-95 y) — scaled and positioned into the card's top-right
-  // corner at draw time. Kept deliberately simple: a recognizable
-  // silhouette, not a detailed illustration (particles are small dots in
-  // motion — detail would just read as noise).
-  var ICONS = {
-    insect: [
-      [5, 45], [20, 40], [35, 50], [40, 70], [30, 90], [13, 93], [0, 75],
-      [20, 25], [40, 7], [53, 20], [40, 35]
-    ],
-    chart: [
-      [0, 45], [0, 5], [15, 20], [30, 35], [45, 10], [60, 30], [75, 15], [90, 25]
-    ],
-    scooter: [
-      [10, 45], [15, 25], [35, 20], [45, 10], [50, 20], [55, 45],
-      [15, 48], [50, 48]
-    ],
-    car: [
-      [0, 27], [20, 12], [40, 10], [60, 2], [75, 0], [78, 10], [60, 22], [30, 27],
-      [15, 34], [65, 34]
-    ]
-  };
-
-  // ---- weight each project's hold time roughly by how much there is to read ----
-  var descLengths = PROJECTS.map(function (p) { return p.desc.length; });
-  var totalDescLen = descLengths.reduce(function (a, b) { return a + b; }, 0);
-  var segmentBounds = [0];
-  descLengths.forEach(function (len) {
-    segmentBounds.push(segmentBounds[segmentBounds.length - 1] + len / totalDescLen);
-  });
-  segmentBounds[segmentBounds.length - 1] = 1; // guard against float drift
-
-  // =====================================================================
   // SHARED PARTICLE POOL
   // =====================================================================
   var particles = [];
   function createParticles() {
     particles = [];
-    for (var i = 0; i < TOTAL_COUNT; i++) {
+    for (var i = 0; i < AMBIENT_COUNT; i++) {
       var marginBias = Math.random() < 0.5 ? Math.random() * 0.28 : 0.72 + Math.random() * 0.28;
       particles.push({
         x: marginBias * window.innerWidth,
@@ -661,26 +582,28 @@
   }
   cacheHeroTextBox();
 
-  // ---- project card position (Stage 6 performance pass) ----
-  // Same reasoning as heroTextBox above. This one used to be read with
-  // getBoundingClientRect() directly inside the animation loop (once per
-  // frame, in both drawHeroParticles()'s project-glow setup and in
-  // drawProjectFrame()) — technically "per frame, not per particle," but
-  // the spec's rule is unconditional, and it turned out to be easy to
-  // avoid entirely: the project card only actually MOVES when either the
-  // window resizes or a different project scrolls into place (it's
-  // pinned in between), so caching on exactly those two events — rather
-  // than continuously — loses nothing.
-  var projectStageRect = null;
-  function cacheProjectStageRect() {
-    if (!projectStageEl) { projectStageRect = null; return; }
-    var r = projectStageEl.getBoundingClientRect();
-    if (r.width === 0 && r.height === 0) { projectStageRect = null; return; } // not laid out / not visible yet
-    projectStageRect = {
-      left: r.left, top: r.top, right: r.right, bottom: r.bottom,
-      width: r.width, height: r.height
+  // ---- projects section position (Stage 6 performance pass) ----
+  // The hero flow gives particles a local turbulence/colour bump when
+  // they're near the projects section (see drawHeroParticles). That needs
+  // the section's position, and reading it with getBoundingClientRect()
+  // every frame is exactly the layout-forcing cost the spec forbids
+  // inside the animation loop.
+  //
+  // Same trick as the footer below: cache the section's position relative
+  // to the whole DOCUMENT once (that never changes), then convert it to a
+  // current on-screen position each frame with a subtraction.
+  var projectsBox = null;
+  function cacheProjectsBox() {
+    if (!projectsSection) { projectsBox = null; return; }
+    var r = projectsSection.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) { projectsBox = null; return; }
+    projectsBox = {
+      cx: r.left + r.width / 2,
+      docCy: r.top + window.scrollY + r.height / 2,
+      radius: Math.max(r.width, r.height) / 2
     };
   }
+  cacheProjectsBox();
 
   // ---- footer position (Stage 6 performance pass) ----
   // The footer is trickier: unlike the two boxes above, it's an ordinary
@@ -713,171 +636,22 @@
   // The hero has no ScrollTrigger at all — per the amendment's "no pin,
   // anywhere" rule, it doesn't need one. currentIntensity() above reads
   // window.scrollY directly, every frame, with nothing pinned or
-  // scroll-jacked. The ScrollTrigger below belongs to the (unrelated,
-  // pre-existing) projects card sequence only.
+  // scroll-jacked. Nothing on this site pins any more — the projects
+  // section is a plain-scrolling node graph (see projects-graph.js).
   var navHeight = navEl ? navEl.offsetHeight : 0;
-
-  // =====================================================================
-  // PROJECTS SCROLL TRIGGER
-  // =====================================================================
-  var projectsRawProgress = 0;
-  var currentProjectIndex = -1; // -1 = not started yet
-  var frameEased = 0; // 0 = dispersed, 1 = fully formed card
-
-  function populateProjectStage(project) {
-    if (stageIdEl) stageIdEl.innerHTML = project.id + ' <span class="job__lifecycle">· ' + project.lifecycle + '</span>';
-    if (stageCategoryEl) stageCategoryEl.textContent = project.categoryLabel;
-    if (stageTitleEl) stageTitleEl.textContent = project.title;
-    if (stageDescEl) stageDescEl.textContent = project.desc;
-    if (stageStackEl) {
-      stageStackEl.innerHTML = '';
-      project.stack.forEach(function (tag) {
-        var li = document.createElement('li');
-        li.textContent = tag;
-        stageStackEl.appendChild(li);
-      });
-    }
-    if (stageLinksEl) {
-      stageLinksEl.innerHTML = '';
-      project.links.forEach(function (link) {
-        var a = document.createElement('a');
-        a.href = link.href;
-        a.textContent = link.label;
-        stageLinksEl.appendChild(a);
-      });
-    }
-    if (projectStageEl) projectStageEl.setAttribute('data-category', project.category);
-  }
-
-  function updateProgressDots(index) {
-    progressDots.forEach(function (dot, i) {
-      dot.classList.toggle('is-active', i === index);
-    });
-  }
-
-  var projectsNavHeight = navHeight;
-  ScrollTrigger.create({
-    trigger: projectsSection,
-    start: 'top ' + projectsNavHeight,
-    end: '+=3200', // shortened from 6000 — ~800px/project, still tune-able
-    pin: true,
-    pinSpacing: true,
-    scrub: 1,
-    onUpdate: function (self) {
-      projectsRawProgress = self.progress;
-
-      // find which project's segment we're in, and local progress within it.
-      // Half-open intervals ([start, end) rather than [start, end]) so a
-      // progress value sitting exactly on a boundary can't match two
-      // segments at once — that ambiguity could otherwise make the index
-      // flicker between two projects for a frame, which kept resetting
-      // is-content-visible before the reveal ever finished (looking like
-      // the card "stopped early" / stayed cut off).
-      var idx = PROJECTS.length - 1;
-      for (var i = 0; i < PROJECTS.length; i++) {
-        if (projectsRawProgress < segmentBounds[i + 1]) {
-          idx = i;
-          break;
-        }
-      }
-      var segStart = segmentBounds[idx], segEnd = segmentBounds[idx + 1];
-      var local = segEnd > segStart ? (projectsRawProgress - segStart) / (segEnd - segStart) : 0;
-
-      if (idx !== currentProjectIndex) {
-        currentProjectIndex = idx;
-        populateProjectStage(PROJECTS[idx]);
-        updateProgressDots(idx);
-        projectStageEl.classList.remove('is-content-visible');
-        cacheProjectStageRect(); // content just changed size — re-measure once, not every frame
-      }
-
-      // assembly 0-0.20 -> full 1, hold, departure 0.80-1.00 -> back to 0
-      var raw;
-      if (local < 0.2) raw = local / 0.2;
-      else if (local > 0.8) raw = 1 - (local - 0.8) / 0.2;
-      else raw = 1;
-      frameEased = easeInOut(Math.max(0, Math.min(1, raw)));
-
-      if (projectStageEl) {
-        projectStageEl.classList.toggle('is-content-visible', frameEased > 0.98);
-      }
-    }
-  });
 
   // =====================================================================
   // DRAW LOOP
   // =====================================================================
-  function drawFrameParticle(p, eased, color) {
-    var driftFactor = 1 - eased;
-    p.x += p.vx * driftFactor;
-    p.y += p.vy * driftFactor * 0.3;
-    var desiredX = p.x + (p.targetX - p.x) * eased;
-    var desiredY = p.y + (p.targetY - p.y) * eased;
-    p._drawX = (p._drawX === undefined ? desiredX : p._drawX) + (desiredX - (p._drawX === undefined ? desiredX : p._drawX)) * 0.12;
-    p._drawY = (p._drawY === undefined ? desiredY : p._drawY) + (desiredY - (p._drawY === undefined ? desiredY : p._drawY)) * 0.12;
-    ctx.beginPath();
-    ctx.arc(p._drawX, p._drawY, p.r, 0, Math.PI * 2);
-    ctx.fillStyle = rgba(color, p.alpha);
-    ctx.fill();
-  }
-
-  function drawProjectFrame() {
-    if (!projectStageEl || currentProjectIndex < 0 || !projectStageRect) return;
-    var project = PROJECTS[currentProjectIndex];
-    var rect = projectStageRect; // cached — see cacheProjectStageRect() above draw()
-    // Neutral bone, not a per-category hue — --accent is reserved for the
-    // hero's project-proximity glow (Stage 4/5), so this card-forming
-    // effect stays in the steel/bone family like everything else.
-    var color = COLORS.bone;
-
-    // outline points along the card's perimeter (straight edges — corner
-    // rounding is small relative to card size, not worth the complexity)
-    var outlineCount = Math.round(FRAME_COUNT * 0.75);
-    var perimeter = 2 * (rect.width + rect.height);
-    var iconCount = FRAME_COUNT - outlineCount;
-
-    for (var i = 0; i < outlineCount; i++) {
-      var t = i / outlineCount;
-      var d = t * perimeter;
-      var x, y;
-      if (d < rect.width) { x = rect.left + d; y = rect.top; }
-      else if (d < rect.width + rect.height) { x = rect.right; y = rect.top + (d - rect.width); }
-      else if (d < 2 * rect.width + rect.height) { x = rect.right - (d - rect.width - rect.height); y = rect.bottom; }
-      else { x = rect.left; y = rect.bottom - (d - 2 * rect.width - rect.height); }
-      var p = particles[i];
-      p.targetX = x; p.targetY = y;
-      drawFrameParticle(p, frameEased, color);
-    }
-
-    // signature icon in the top-right corner, scaled from local coords
-    var iconPoints = ICONS[project.icon] || [];
-    var iconScale = 0.9;
-    var iconOffsetX = rect.right - 100;
-    var iconOffsetY = rect.top + 20;
-    for (var j = 0; j < iconCount; j++) {
-      var pt = iconPoints[j % iconPoints.length];
-      var p2 = particles[outlineCount + j];
-      p2.targetX = iconOffsetX + pt[0] * iconScale;
-      p2.targetY = iconOffsetY + pt[1] * iconScale;
-      drawFrameParticle(p2, frameEased, color);
-    }
-  }
-
   // Returns null to mean "use this particle's own steel<->bone tone"
-  // rather than one shared colour — see drawAmbient(). Only the footer-
-  // settling and viewing-a-project states override that with one flat
-  // colour, since those are deliberate, singular moments.
+  // rather than one shared colour — see drawAmbient(). Only the
+  // footer-settling state overrides that with one flat colour, since
+  // that's a deliberate, singular moment.
   function currentAmbientColor() {
     var scrollFrac = window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    if (currentProjectIndex >= 0 && projectsRawProgress < 1) return COLORS.bone;
     if (scrollFrac > 0.95) return COLORS.muted; // settling near the footer
     return null;
   }
-
-  // Whether the projects section currently has exclusive claim on the
-  // first FRAME_COUNT particles (ambient drift is paused on those
-  // particles while the projects card sequence is using them).
-  var projectsClaimFrame = false;
 
   function drawAmbient() {
     var color = currentAmbientColor();
@@ -894,8 +668,7 @@
     var scrollFrac = window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
     var settling = scrollFrac > 0.97 && footerRect;
 
-    var startIdx = projectsClaimFrame ? FRAME_COUNT : 0;
-    for (var i = startIdx; i < TOTAL_COUNT; i++) {
+    for (var i = 0; i < AMBIENT_COUNT; i++) {
       var p = particles[i];
       if (settling) {
         p.x += (footerRect.left + footerRect.width / 2 - p.x) * 0.01;
@@ -949,10 +722,6 @@
     heroTime += 1 / 60; // fixed step, not real elapsed time — see heroTime's declaration above
     drawHeroParticles(currentIntensity());
 
-    projectsClaimFrame = currentProjectIndex >= 0 && projectsRawProgress < 1 && frameEased > 0.001;
-    if (currentProjectIndex >= 0) {
-      drawProjectFrame();
-    }
     drawAmbient();
 
     rafId = requestAnimationFrame(draw);
@@ -975,7 +744,7 @@
     resizeTimer = setTimeout(function () {
       resizeCanvas();
       cacheHeroTextBox();
-      cacheProjectStageRect();
+      cacheProjectsBox();
       cacheFooterBox();
       ScrollTrigger.refresh();
     }, 150);
