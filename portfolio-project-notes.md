@@ -399,6 +399,24 @@ One rule worth remembering: a tag shared by *every* project carries no informati
 - **Escape / click-away closes the summary**, and opening one scrolls it into view if it landed below the fold.
 - Fallback `.jobs` cards updated to the same corrected tags and IDs, so both versions tell the same story.
 
+### 24. Skills rebuilt as a depth-grouped list
+
+Replaced the flat tag cloud. The old version made every skill an identical bordered pill, which gave a language used daily and a text editor exactly the same visual weight — it answered "what have you touched?" when the useful question is "what do you actually reach for?"
+
+Now two tiers, **Core** (8) and **Familiar** (13), with the difference carried entirely by the neutral ramp: core is `--bone`, larger, weight 500; familiar is `--text-muted`, smaller, weight 400. **No orange anywhere in the section content** — that stays spent on the projects graph and nav.
+
+**The two tiers also differ in layout, not just typography.** Core is a real three-column list, one item per line with room to breathe. Familiar is a denser inline run. That means the hierarchy survives even in black and white, and it keeps this section structurally distinct from the node graph directly above it — two diagrams back to back would have flattened the page's rhythm.
+
+Each heading carries a quiet mono note ("day to day" / "used where a project called for it") so the tier names aren't left to be guessed at.
+
+**Reveal:** reuses the existing IntersectionObserver in `script.js` rather than adding a second one. The groups are observed but deliberately NOT given the shared `.reveal` class, since that fades a whole block as one unit — here the heading lands first and items follow ~45ms apart, so the list assembles. Per-item delays are set in JS rather than as nth-child CSS, because the lists are hand-edited and a hardcoded per-position delay would silently break the moment a skill moved between tiers.
+
+**Tidy-up worth noting:** `cubic-bezier(0.16, 1, 0.3, 1)` was floating in the stylesheet as a magic number. `design-system.md` had already named that curve `--ease-flight`, so it's a real token now and both the graph and skills reference it.
+
+**One thing left alone, flag it if you disagree:** the `// 03_stack` eyebrow above the heading is still orange. That's the sitewide section-label convention (About, Projects and Contact all have it), not something added for this section — making skills the only section without it would look like a mistake. One-line change if you'd rather it went.
+
+**To edit the lists:** they're plain `<li>` items in `index.html`. Move one between the two `<ul>`s and the styling follows automatically.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 
