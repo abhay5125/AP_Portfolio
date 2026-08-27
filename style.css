@@ -412,55 +412,19 @@ img, svg { display: block; max-width: 100%; }
 
 /* ============================================
    ABOUT
-   ============================================ */
-.about {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 3rem;
-}
 
+   Copy only. The stats grid that used to sit alongside this (years in
+   data / role / degree / currently exploring / current project) is
+   gone — five identical label-then-value pairs in one bordered box was
+   the most component-shaped thing on the page, and role and degree were
+   already stated in the hero and in the prose below anyway. Nothing
+   replaced it: the section is just shorter now, and the copy sits at
+   its natural measure instead of being squeezed into 1.4fr of a grid.
+   ============================================ */
 .about__copy p {
   color: var(--text-muted);
   margin-bottom: 1.1rem;
   max-width: 58ch;
-}
-
-.about__stats {
-  display: flex;
-  flex-wrap: wrap;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  align-content: start;
-  height: fit-content;
-}
-
-.stat {
-  flex: 1 1 120px;
-  padding: 1.1rem 1.2rem;
-  border-right: 1px solid var(--border);
-}
-.stat:last-child {
-  border-right: none;
-}
-.stat dt {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-bottom: 0.4rem;
-}
-.stat dd {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--accent);
-}
-
-@media (max-width: 780px) {
-  .about { grid-template-columns: 1fr; }
-  .about__stats { flex-direction: column; }
-  .stat { border-right: none; border-bottom: 1px solid var(--border); }
-  .stat:last-child { border-bottom: none; }
 }
 
 /* ============================================
@@ -751,6 +715,14 @@ body.has-node-graph .pgraph__hint {
 .pgraph__node.is-open .pgraph__disc { stroke: var(--accent); }
 .pgraph__node.is-open .pgraph__halo { fill: var(--accent); opacity: 0.14; }
 
+/* While one project is expanded below, every other node recedes — the
+   page has handed that project the floor. Opacity only: no colour
+   change, no blur, and deliberately gentler than the hover depth-of-
+   field above, which still wins on specificity if you hover while one is
+   open. */
+.pgraph__svg.has-open .pgraph__node:not(.is-open),
+.pgraph__svg.has-open .pgraph__edge { opacity: 0.4; }
+
 /* Keyboard focus needs to be obvious on its own terms, not only via the
    hover styling it happens to share. */
 .pgraph__node:focus-visible .pgraph__disc {
@@ -785,91 +757,114 @@ body.has-node-graph .pgraph__hint {
   to   { stroke-dashoffset: -8; opacity: 0; }
 }
 
-/* ---- inline summary ---- */
+/* ---- in-page editorial reveal ----
+
+   Replaces the old summary card. There is deliberately NO container
+   here: no panel background, no accent left border, no radius, no
+   bounding box of any kind. The expanded project is part of the page
+   rather than an object sitting on it — the only structural marks are a
+   single hairline rule and the whitespace around it.
+
+   Hierarchy is carried entirely by type size, colour and spacing, in
+   place of the four orange uppercase field labels the previous version
+   repeated. Nothing in here uses --accent except the link on hover,
+   which is the site's standing rule: orange marks the thing you are
+   interacting with right now, not every value on screen.
+
+   The expand animates grid-template-rows 0fr -> 1fr, which resolves to
+   the content's real height with nothing measured in JS — see the long
+   comment in projects-graph.js for why that matters. */
 .psummary {
-  display: none;
-  background: var(--panel);
-  border-left: 3px solid var(--accent);
-  border-radius: 12px 12px 12px 2px;
-  padding: 1.75rem;
-  max-width: 62ch;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.5s var(--ease-flight);
 }
-.psummary.is-open { display: block; }
+.psummary.is-open { grid-template-rows: 1fr; }
 
-.psummary__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.85rem;
+/* min-height:0 is what lets the row actually collapse to nothing — grid
+   items refuse to shrink past their content height without it. */
+.psummary__inner {
+  overflow: hidden;
+  min-height: 0;
 }
-.psummary__id {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--accent);
-  letter-spacing: 0.06em;
+
+.psummary__content {
+  border-top: 1px solid var(--border);
+  padding-top: 2.5rem;
+  padding-bottom: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.4s var(--ease-flight);
 }
-.psummary__category {
+.psummary.is-open .psummary__content { opacity: 1; }
+/* Held invisible while a different project's content is swapped in, so
+   the height change lands behind the fade instead of under live text. */
+.psummary.is-open .psummary__content.is-swapping { opacity: 0; }
+
+.psummary__meta {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
-  border: 1px solid var(--border);
-  padding: 0.25rem 0.6rem;
-  border-radius: 20px 20px 20px 2px;
+  margin-bottom: 0.9rem;
 }
 
+/* Display type at a size that reads as a headline for this stretch of
+   page, but still clearly under the section title above it. */
 .psummary__title {
   font-family: var(--font-display);
-  font-size: 1.25rem;
   font-weight: 600;
+  font-size: clamp(1.35rem, 2.4vw, 1.9rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  max-width: 26ch;
+  margin-bottom: 1.6rem;
+}
+
+/* The opening line — what the project was. Brighter and larger than the
+   prose under it, which is what marks it as the framing without a label
+   announcing it. */
+.psummary__lede {
+  font-size: 1.08rem;
+  line-height: 1.6;
+  color: var(--bone);
+  max-width: 58ch;
   margin-bottom: 1.1rem;
 }
 
-.psummary__row { margin-bottom: 1rem; }
-.psummary__label {
-  display: block;
+.psummary__para {
+  color: var(--text-muted);
+  line-height: 1.7;
+  max-width: 62ch;
+  margin-bottom: 0.9rem;
+}
+
+/* One plain inline run, not pill tags. Wide word-spacing around the
+   middots does the separating that borders used to. */
+.psummary__tech {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 0.78rem;
+  line-height: 1.9;
+  color: var(--text-muted);
+  max-width: 68ch;
+  margin-top: 1.8rem;
+}
+
+/* Understated: a text link with a hairline under it, not a filled
+   button. */
+.psummary__more {
+  display: inline-block;
+  margin-top: 1.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--bone);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.25rem;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.psummary__more:hover {
   color: var(--accent);
-  margin-bottom: 0.35rem;
-}
-.psummary__text { color: var(--text-muted); font-size: 0.95rem; }
-.psummary__status {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--bone);
-}
-
-.psummary__tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  list-style: none;
-}
-.psummary__tools li {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  padding: 0.25rem 0.55rem;
-  border-radius: 5px;
-}
-
-.psummary__cta { margin-top: 0.5rem; }
-
-/* Satellite project — confirmed for the graph, write-up not done yet. */
-.psummary__coming {
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  color: var(--bone);
-  margin-bottom: 0.4rem;
-}
-.psummary__coming-note {
-  color: var(--text-muted);
-  font-size: 0.9rem;
+  border-bottom-color: var(--accent);
 }
 
 /* Once the graph is live, the plain card grid is redundant — it only
@@ -877,7 +872,8 @@ body.has-node-graph .pgraph__hint {
 body.has-node-graph .jobs { display: none; }
 
 @media (max-width: 780px) {
-  .psummary { padding: 1.25rem; }
+  .psummary__content { padding-top: 2rem; }
+  .psummary__title { max-width: none; margin-bottom: 1.25rem; }
 }
 @media (max-width: 700px) {
   /* Keep nodes big enough to hit with a thumb; scroll sideways instead
@@ -897,6 +893,14 @@ body.has-node-graph .jobs { display: none; }
   }
   .pgraph__edge-line { stroke-dashoffset: 0 !important; transition: none; }
   .pgraph__edge-pulse.is-pulsing { animation: none; }
+
+  /* The expansion still works, it just arrives instead of unfolding —
+     no height transition, no fade. projects-graph.js also drops the
+     cross-fade delay to 0 in this mode, so switching projects swaps
+     straight over. */
+  .psummary { transition: none; }
+  .psummary__content { transition: none; }
+  .psummary.is-open .psummary__content { opacity: 1; }
 }
 
 /* ============================================
