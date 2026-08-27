@@ -464,6 +464,39 @@ Checked: renders identically with JavaScript disabled (pure markup/CSS, no obser
 
 `style.css?v=` bumped to `v=15`.
 
+### 28. Stats block removed, project expansion rebuilt as an editorial reveal
+
+Acting on `ui-pattern-review.md` — its recommended options D+A for the stats block and A for the expansion.
+
+**Stats block: deleted, nothing put in its place.** The years-in-data / role / degree / currently-exploring / current-project grid is gone. Five identical label-then-value pairs inside one bordered box was the most component-shaped thing on the page, and the review's diagnosis is right that repetition + containment is what reads as generated. Role and degree were already stated in the hero and in the About prose, so they weren't re-added anywhere — the section is simply shorter, and the copy now sits at its natural 58ch measure instead of being squeezed into `1.4fr` of a two-column grid. The `.about` grid wrapper went with it; `.about__copy` is the whole section now.
+
+**Project expansion: full-bleed editorial, no container.** Removed the rounded panel, the accent left border, the four orange uppercase field labels (WHAT INVOLVED / TOOLS / CAPABILITIES / STATUS), both pill-tag rows, the category badge and the solid orange button. What replaces them has no container at all — one hairline rule and whitespace are the only structural marks, and hierarchy is carried by type size, colour and spacing:
+
+1. quiet mono meta line — `PROJECT-03 · in progress`, status as a trailing clause rather than a labelled field, in the voice the fallback cards and the footer's `// last_run` line already use
+2. display-size title (deliberately below the section title's scale)
+3. an opening line in `--bone`, larger — the framing, marked as such by weight rather than by a heading saying so
+4. supporting prose in `--text-muted`
+5. one plain inline technology run separated by `·`
+6. an understated text link with a hairline under it
+
+Nothing in the block uses `--accent` except the link on hover, which keeps the site's standing rule that orange marks what you're interacting with right now.
+
+**Content was re-cut, not rewritten.** Each project's single `involved` paragraph became three fields — `context` (what it was / the problem), `work` (what was actually done), `outcome` (what came of it) — because the brief asks for that hierarchy and one blob of prose can't provide it. **These are re-cuts of the sentences that were already there; no new factual claims were introduced. Worth reading them though, since the framing sentences are now doing more work than before.**
+
+**Expand mechanic — the layout-jump risk the brief flagged.** Used `grid-template-rows: 0fr → 1fr` on a one-row grid rather than an animated `max-height` with a measured `scrollHeight`. The grid row resolves to the content's own height, so there is nothing to measure and therefore no wrong-height clipping when text wraps differently than it did at measure time. Verified all five projects at 1440 / 1024 / 820 / 600 / 390px — panel height equals content height in every case — and confirmed it follows a live 1440→420 resize while open.
+
+Switching straight from one open project to another can't animate its height (the row is already `1fr`, so the property never changes and there's nothing to transition), so that path cross-fades instead: content fades out over 170ms, swaps, fades back in. The height settles while the text is invisible rather than snapping under live text. A guard drops any swap whose project is no longer the open one, so rapid clicking can't land on stale content — tested with six clicks at 45ms intervals, settles correctly with no stuck state.
+
+**Other nodes recede** to opacity 0.4 while one is expanded (`has-open` on the SVG). Opacity only — node colour treatment is untouched, and the existing hover depth-of-field still wins on specificity if you hover while one is open.
+
+**Reduced motion:** no height transition, no fade, no cross-fade delay (`SWAP_MS` drops to 0) — the expansion still works, it just arrives. **No-JS:** unchanged, `#projectsSummary` ships empty and the fallback card grid stays visible.
+
+**Terminology:** `AERO-01 / QUANT-01 / PIPE-01 / QUANT-02 / AERO-02` → `PROJECT-01` through `PROJECT-05`, in graph order, in both the graph data and the fallback cards. Note the brief described these as "PIPE-01 through PIPE-05" — only one project was ever `PIPE-`; the five got a uniform prefix, which is what the rename was clearly after.
+
+Untouched and verified by diff: the flow-field particle system, the hero, skills, dividers, the node glyphs, node positions, node colour states, and the edge/neighbour logic (`tools` and `capabilities` arrays are byte-identical, so the computed graph is unchanged).
+
+`style.css?v=` bumped to `v=16`.
+
 ## Questions / things I don't understand yet
 *(add to this as we go — no question is too basic)*
 

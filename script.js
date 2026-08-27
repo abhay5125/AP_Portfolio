@@ -17,7 +17,7 @@ document.querySelectorAll('.nav__links a').forEach(link => {
 
 // Scroll-reveal for sections and job cards
 const revealTargets = document.querySelectorAll(
-  '.section__title, .section__intro, .about__copy, .about__stats, .job'
+  '.section__title, .section__intro, .about__copy, .job'
 );
 revealTargets.forEach(el => el.classList.add('reveal'));
 

@@ -56,48 +56,56 @@
   // =====================================================================
   var PROJECTS = [
     {
-      id: 'AERO-01',
+      id: 'PROJECT-01',
       key: 'mav',
       glyph: 'mav',
       x: 120, y: 130,
       title: 'DC micro-motor selection for a Biologically-Inspired Flapping-Wing MAV',
-      involved: 'Built a computational model in MATLAB to generate and analyse performance data for flapping-wing Micro Aerial Vehicles. Compared actuator parameters to find the relationships between mass, power, frequency and efficiency, and used those to judge design trade-offs.',
+      context: 'Choosing a DC micro-motor for a biologically-inspired flapping-wing micro aerial vehicle, where mass, power, frequency and efficiency all trade against each other.',
+      work: 'Built a computational model in MATLAB to generate and analyse actuator performance data, comparing parameters across the range to find how those four quantities actually relate.',
+      outcome: 'Those relationships became the basis for judging the design trade-offs between candidate motors.',
       tools: ['MATLAB'],
       capabilities: ['Quantitative Analysis', 'Computational Modelling', 'Data Visualisation'],
       status: 'live',
       category: 'Aerospace Analysis'
     },
     {
-      id: 'QUANT-01',
+      id: 'PROJECT-02',
       key: 'trading',
       glyph: 'trading',
       x: 390, y: 210,
       title: 'Quantitative Trading Strategy Backtesting',
-      involved: 'Analysed historical financial data with Python and Pandas to build and backtest trading strategies. Engineered technical indicators including moving averages and Bollinger Bands, then evaluated how they would actually have performed.',
+      context: 'Testing whether technical trading rules hold up when they are replayed against real historical price data, rather than only in description.',
+      work: 'Pulled historical financial data with Python and Pandas, engineered technical indicators including moving averages and Bollinger Bands, and built a backtest to run strategies over the series.',
+      outcome: 'Each strategy could then be judged on how it would genuinely have performed.',
       tools: ['Python', 'Pandas', 'NumPy', 'yfinance', 'Matplotlib'],
       capabilities: ['Quantitative Analysis', 'API Integration', 'Data Visualisation'],
       status: 'live',
       category: 'Data Analysis'
     },
     {
-      id: 'PIPE-01',
+      id: 'PROJECT-03',
       key: 'delivery',
       glyph: 'delivery',
       x: 330, y: 390,
       title: 'NYC Delivery Service — End-to-End Data Engineering',
-      involved: 'Built an end-to-end analytics solution in Databricks and Power BI, moving restaurant delivery data through a Medallion architecture. Looked at sales trends against outside factors like weather, public holidays and major sporting events to explain shifts in demand.',
+      context: 'Restaurant delivery demand moves for reasons that are not in the sales data itself — weather, public holidays, major sporting events.',
+      work: 'Built an end-to-end solution moving the delivery data through a Medallion architecture in Databricks, then modelled it for reporting in Power BI.',
+      outcome: 'Sales trends could be read against those outside factors, which is what made shifts in demand explainable rather than just visible.',
       tools: ['Python', 'Databricks', 'Apache Spark', 'Microsoft Azure', 'Power BI'],
       capabilities: ['Pipeline Engineering', 'Data Modelling', 'Cloud', 'Data Visualisation'],
       status: 'in progress',
       category: 'Data Engineering'
     },
     {
-      id: 'QUANT-02',
+      id: 'PROJECT-04',
       key: 'f1',
       glyph: 'f1',
       x: 660, y: 120,
       title: 'Formula 1 Performance Analysis',
-      involved: 'Pulled Formula 1 race data from the FastF1 API and worked out tyre degradation across compounds and race stints. Analysed lap-time trends and driver performance, and presented it through an interactive Streamlit dashboard.',
+      context: 'Tyre degradation drives race strategy, but it only becomes visible once lap times are broken down by compound and by stint.',
+      work: 'Pulled race data from the FastF1 API, calculated degradation across compounds and stints, and analysed lap-time trends and driver performance.',
+      outcome: 'Presented as an interactive Streamlit dashboard, so a race can be explored rather than only summarised.',
       tools: ['Python', 'Pandas', 'NumPy', 'FastF1 API', 'Streamlit'],
       capabilities: ['Quantitative Analysis', 'API Integration', 'Data Visualisation'],
       status: 'archived',
@@ -110,12 +118,14 @@
       // clicking it gets a "coming soon" state rather than empty fields.
       // With no tags it has no edges, which reads honestly as "not wired
       // in yet" rather than as a bug.
-      id: 'AERO-02',
+      id: 'PROJECT-05',
       key: 'satellite',
       glyph: 'satellite',
       x: 690, y: 360,
       title: '',
-      involved: '',
+      context: '',
+      work: '',
+      outcome: '',
       tools: [],
       capabilities: [],
       status: '',
@@ -271,8 +281,8 @@
 
     // Edges are gently CURVED rather than straight. In a graph this
     // dense, straight lines inevitably pass close to nodes they have
-    // nothing to do with — the AERO-01/QUANT-02 link ran right along the
-    // edge of QUANT-01, which made it look like it terminated there.
+    // nothing to do with — the PROJECT-01/PROJECT-04 link ran right along
+    // the edge of PROJECT-02, which made it look like it terminated there.
     // Bowing each edge slightly pushes it clear of whatever it passes,
     // so the topology stays unambiguous, and it reads more like a flow
     // diagram than a wireframe.
@@ -459,90 +469,118 @@
   });
 
   // =====================================================================
-  // INLINE SUMMARY (click to expand)
+  // IN-PAGE EDITORIAL REVEAL (click a node to expand that project)
+  //
+  // Deliberately NOT a card. The previous version was a rounded panel
+  // with an accent left border, four orange uppercase labels (WHAT
+  // INVOLVED / TOOLS / CAPABILITIES / STATUS), two rows of pill tags, a
+  // category badge and a solid orange button — i.e. one micro-template
+  // repeated four times inside a container, which is exactly the shape
+  // that reads as generated rather than written (see
+  // ui-pattern-review.md).
+  //
+  // What replaces it has no container at all. Hierarchy comes from type
+  // size, colour and spacing: quiet mono meta line, a display-size
+  // title, a slightly brighter opening line, then supporting prose, then
+  // one plain inline technology run and one understated link. It should
+  // read as a short project story that happens to be technical, not as a
+  // record with labelled fields.
+  //
+  // EXPAND MECHANIC: the wrapper is a one-row grid animating
+  // grid-template-rows 0fr -> 1fr. That resolves to the content's own
+  // height, so there is nothing to measure in JS and therefore no
+  // wrong-height layout jump — the failure mode a max-height/scrollHeight
+  // implementation is prone to when content wraps differently than it did
+  // when it was measured.
   // =====================================================================
   var openKey = null;
 
-  function fieldRow(label, valueNode) {
-    var row = document.createElement('div');
-    row.className = 'psummary__row';
-    var dt = document.createElement('span');
-    dt.className = 'psummary__label';
-    dt.textContent = label;
-    row.appendChild(dt);
-    row.appendChild(valueNode);
-    return row;
-  }
+  // Built once. index.html ships #projectsSummary empty on purpose (so
+  // there's nothing to see without JavaScript); these two wrappers are
+  // what the grid expand animates, and content is refilled per project.
+  var inner = document.createElement('div');
+  inner.className = 'psummary__inner';
+  var content = document.createElement('div');
+  content.className = 'psummary__content';
+  inner.appendChild(content);
+  panel.appendChild(inner);
 
-  function textNode(cls, text) {
+  // How long the outgoing project fades before the incoming one is built.
+  // Switching directly between two open projects can't animate its own
+  // height (the grid row is already 1fr, so the value never changes and
+  // there's nothing to transition) — so the swap happens while the text
+  // is invisible, and the height settles behind the fade instead of
+  // snapping under live text.
+  var SWAP_MS = reduceMotion ? 0 : 170;
+
+  function para(cls, text) {
     var el = document.createElement('p');
     el.className = cls;
     el.textContent = text;
     return el;
   }
 
-  function tagList(items, cls) {
-    var ul = document.createElement('ul');
-    ul.className = cls;
-    items.forEach(function (t) {
-      var li = document.createElement('li');
-      li.textContent = t;
-      ul.appendChild(li);
-    });
-    return ul;
-  }
-
   function buildSummary(p) {
-    panel.innerHTML = '';
+    content.innerHTML = '';
 
-    var head = document.createElement('div');
-    head.className = 'psummary__head';
-    var id = document.createElement('span');
-    id.className = 'psummary__id';
-    id.textContent = p.id;
-    head.appendChild(id);
-    if (p.category) {
-      var cat = document.createElement('span');
-      cat.className = 'psummary__category';
-      cat.textContent = p.category;
-      head.appendChild(cat);
-    }
-    panel.appendChild(head);
+    // Meta line: ID, and status only as a quiet trailing clause — not a
+    // labelled STATUS field. Same "PROJECT-03 · in progress" voice the
+    // no-JS fallback cards and the footer's // last_run line already use.
+    var meta = document.createElement('p');
+    meta.className = 'psummary__meta';
+    meta.textContent = p.status ? p.id + '  ·  ' + p.status : p.id;
+    content.appendChild(meta);
 
     if (p.placeholder) {
-      panel.appendChild(textNode('psummary__coming', 'Details coming soon.'));
-      panel.appendChild(textNode('psummary__coming-note',
-        'This project is confirmed but the write-up is still to be done.'));
+      content.appendChild(para('psummary__lede', 'Write-up still to come.'));
+      content.appendChild(para('psummary__para',
+        'This project is confirmed for the graph — the write-up hasn’t been done yet.'));
       return;
     }
 
     var h = document.createElement('h3');
     h.className = 'psummary__title';
     h.textContent = p.title;
-    panel.appendChild(h);
+    content.appendChild(h);
 
-    panel.appendChild(fieldRow('What involved', textNode('psummary__text', p.involved)));
-    panel.appendChild(fieldRow('Tools', tagList(p.tools, 'psummary__tools')));
-    panel.appendChild(fieldRow('Capabilities', tagList(p.capabilities, 'psummary__tools')));
-    panel.appendChild(fieldRow('Status', textNode('psummary__status', p.status)));
+    // The story, in order: what it was, what was actually done, what came
+    // of it. No labels — the opening line is brighter and larger, which
+    // is what marks it as the framing rather than a heading saying so.
+    if (p.context) content.appendChild(para('psummary__lede', p.context));
+    if (p.work) content.appendChild(para('psummary__para', p.work));
+    if (p.outcome) content.appendChild(para('psummary__para', p.outcome));
+
+    // One inline run, not two pill groups. Tools and capabilities stay
+    // separate in the DATA (the edge logic matches on both and is not
+    // being touched), but a reader doesn't benefit from having them
+    // presented as two different kinds of thing.
+    var tech = p.tools.concat(p.capabilities);
+    if (tech.length) {
+      content.appendChild(para('psummary__tech', tech.join('  ·  ')));
+    }
 
     // Detail pages don't exist yet — "#" is the same placeholder
     // convention used for the repo/write-up links elsewhere on the site.
     var link = document.createElement('a');
-    link.className = 'btn btn--primary psummary__cta';
+    link.className = 'psummary__more';
     link.href = '#';
-    link.textContent = 'View full project ↗';
-    panel.appendChild(link);
+    link.textContent = 'Full write-up →';
+    content.appendChild(link);
   }
 
   function closeSummary() {
     openKey = null;
     panel.classList.remove('is-open');
     panel.setAttribute('aria-hidden', 'true');
+    content.classList.remove('is-swapping');
     syncOpenState();
   }
 
   function syncOpenState() {
+    // Everything that isn't the expanded project recedes while one is
+    // open — the page is giving that project the floor. Opacity only; the
+    // node colour treatment itself is untouched.
+    svg.classList.toggle('has-open', openKey !== null);
     nodeLayer.querySelectorAll('.pgraph__node').forEach(function (n) {
       var isOpen = n.getAttribute('data-key') === openKey;
       n.classList.toggle('is-open', isOpen);
@@ -559,11 +597,26 @@
       return;
     }
 
+    var wasOpen = openKey !== null;
     openKey = key;
-    buildSummary(p);
-    panel.classList.add('is-open');
-    panel.setAttribute('aria-hidden', 'false');
     syncOpenState();
+
+    if (wasOpen && SWAP_MS) {
+      // Already expanded on a different project — cross-fade rather than
+      // collapsing and re-opening, which would be a lot of movement for
+      // what is really just a change of subject.
+      content.classList.add('is-swapping');
+      window.setTimeout(function () {
+        if (openKey !== key) return; // a newer click already won
+        buildSummary(p);
+        content.classList.remove('is-swapping');
+      }, SWAP_MS);
+    } else {
+      buildSummary(p);
+      content.classList.remove('is-swapping');
+      panel.classList.add('is-open');
+      panel.setAttribute('aria-hidden', 'false');
+    }
 
     // On a short screen the summary can open below the fold, which makes
     // clicking a node look like it did nothing. Nudge it into view —
